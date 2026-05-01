@@ -1,0 +1,82 @@
+-- ============================================================
+-- Health Insurance Claim Fraud Pattern Detection System
+-- Database Schema (MySQL)
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS fraud_detection;
+USE fraud_detection;
+
+-- ============================================================
+-- DDL: Table Creation
+-- ============================================================
+
+-- 1. PATIENT
+CREATE TABLE IF NOT EXISTS PATIENT (
+    PATIENT_ID   INT AUTO_INCREMENT PRIMARY KEY,
+    FIRST_NAME   VARCHAR(50)  NOT NULL,
+    LAST_NAME    VARCHAR(50)  NOT NULL,
+    GENDER       ENUM('Male','Female','Other') NOT NULL,
+    DOB          DATE         NOT NULL,
+    ADDRESS      VARCHAR(255) NOT NULL,
+    EMAIL        VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- 2. POLICY
+CREATE TABLE IF NOT EXISTS POLICY (
+    POLICY_ID       INT AUTO_INCREMENT PRIMARY KEY,
+    POLICY_TYPE     VARCHAR(50)    NOT NULL,
+    START_DATE      DATE           NOT NULL,
+    END_DATE        DATE           NOT NULL,
+    COVERAGE_AMOUNT DECIMAL(12,2)  NOT NULL,
+    PATIENT_ID      INT            NOT NULL,
+    CONSTRAINT fk_policy_patient FOREIGN KEY (PATIENT_ID) REFERENCES PATIENT(PATIENT_ID)
+);
+
+-- 3. MEDICAL_PROVIDER
+CREATE TABLE IF NOT EXISTS MEDICAL_PROVIDER (
+    PROVIDER_ID     INT AUTO_INCREMENT PRIMARY KEY,
+    PROVIDER_NAME   VARCHAR(100) NOT NULL,
+    PROVIDER_TYPE   VARCHAR(50)  NOT NULL,
+    ADDRESS         VARCHAR(255) NOT NULL,
+    CONTACT_NUMBER  VARCHAR(20)  NOT NULL
+);
+
+-- 4. CLAIM
+CREATE TABLE IF NOT EXISTS CLAIM (
+    CLAIM_ID        INT AUTO_INCREMENT PRIMARY KEY,
+    CLAIM_DATE      DATE           NOT NULL,
+    CLAIM_AMOUNT    DECIMAL(12,2)  NOT NULL,
+    APPROVED_AMOUNT DECIMAL(12,2)  DEFAULT 0.00,
+    DIAGNOSIS       VARCHAR(255)   NOT NULL,
+    STATUS          ENUM('Pending','Approved','Rejected','Under Review') NOT NULL DEFAULT 'Pending',
+    POLICY_ID       INT            NOT NULL,
+    PROVIDER_ID     INT            NOT NULL,
+    CONSTRAINT fk_claim_policy   FOREIGN KEY (POLICY_ID)   REFERENCES POLICY(POLICY_ID),
+    CONSTRAINT fk_claim_provider FOREIGN KEY (PROVIDER_ID) REFERENCES MEDICAL_PROVIDER(PROVIDER_ID)
+);
+
+-- 5. FRAUD_RULE
+CREATE TABLE IF NOT EXISTS FRAUD_RULE (
+    RULE_ID         INT AUTO_INCREMENT PRIMARY KEY,
+    RULE_NAME       VARCHAR(100)   NOT NULL,
+    DESCRIPTION     TEXT           NOT NULL,
+    THRESHOLD_VALUE DECIMAL(12,2)  NOT NULL
+);
+
+-- 6. CLAIM_RULE (Junction Table — BCNF: no partial dependency)
+CREATE TABLE IF NOT EXISTS CLAIM_RULE (
+    CLAIM_ID INT NOT NULL,
+    RULE_ID  INT NOT NULL,
+    PRIMARY KEY (CLAIM_ID, RULE_ID),
+    CONSTRAINT fk_cr_claim FOREIGN KEY (CLAIM_ID) REFERENCES CLAIM(CLAIM_ID),
+    CONSTRAINT fk_cr_rule  FOREIGN KEY (RULE_ID)  REFERENCES FRAUD_RULE(RULE_ID)
+);
+
+-- 7. FRAUD_FLAG
+CREATE TABLE IF NOT EXISTS FRAUD_FLAG (
+    FLAG_ID      INT AUTO_INCREMENT PRIMARY KEY,
+    CLAIM_ID     INT          NOT NULL,
+    FLAG_REASON  TEXT         NOT NULL,
+    FLAGGED_DATE DATE         NOT NULL DEFAULT (CURRENT_DATE),
+    CONSTRAINT fk_ff_claim FOREIGN KEY (CLAIM_ID) REFERENCES CLAIM(CLAIM_ID)
+);
