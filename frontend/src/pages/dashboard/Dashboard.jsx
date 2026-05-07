@@ -1,8 +1,6 @@
 import React from 'react';
 import PageLayout from '../../components/layout/PageLayout';
 import StatsCard from '../../components/dashboard/StatsCard';
-import RiskDistributionChart from '../../components/dashboard/RiskDistributionChart';
-import ClaimsTrendChart from '../../components/dashboard/ClaimsTrendChart';
 import RecentClaimsTable from '../../components/dashboard/RecentClaimsTable';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { getDashboardStats } from '../../services/fraudService';
@@ -23,17 +21,10 @@ const Dashboard = () => {
           {/* KPI Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <StatsCard title="Total Claims"    value={d.total_claims}    icon="📄" color="#6366f1" bg="#eef2ff" subtitle={formatCurrency(d.total_amount)} />
-            <StatsCard title="Fraud Flags"     value={d.total_flags}     icon="🚨" color="#ef4444" bg="#fee2e2" subtitle="Flagged for review" />
             <StatsCard title="Total Patients"  value={d.total_patients}  icon="👤" color="#0ea5e9" bg="#e0f2fe" />
             <StatsCard title="Providers"       value={d.total_providers} icon="🏥" color="#10b981" bg="#d1fae5" />
             <StatsCard title="Approved"        value={d.approved}        icon="✅" color="#16a34a" bg="#dcfce7" />
             <StatsCard title="Under Review"    value={d.under_review}    icon="🔍" color="#7c3aed" bg="#ede9fe" />
-          </div>
-
-          {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '1rem' }}>
-            <RiskDistributionChart data={d.risk_distribution} />
-            <ClaimsTrendChart data={d.trend} />
           </div>
 
           {/* Bottom row */}

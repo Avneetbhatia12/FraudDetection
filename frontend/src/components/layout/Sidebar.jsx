@@ -8,7 +8,6 @@ const NAV = [
   { label: 'Policies',         path: '/policies',        icon: '📋' },
   { label: 'Providers',        path: '/providers',       icon: '🏥' },
   { label: 'Claims',           path: '/claims',          icon: '📄' },
-  { label: 'Fraud Flags',      path: '/fraud-flags',     icon: '🚨' },
   { label: 'Fraud Rules',      path: '/fraud-rules',     icon: '⚙️' },
   { label: 'Reports',          path: '/reports',         icon: '📈' },
   { label: 'Users',            path: '/users',           icon: '👥' },
