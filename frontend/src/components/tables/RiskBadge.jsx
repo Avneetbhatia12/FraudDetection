@@ -12,7 +12,7 @@ const RiskBadge = ({ flagCount }) => {
       fontSize: '0.75rem', fontWeight: 600,
       color: c.color, background: c.bg,
     }}>
-      {level === 'HIGH' && '🚨'}{level === 'MEDIUM' && '⚠️'}{level === 'LOW' && '✅'}
+      {level === 'HIGH' }{level === 'MEDIUM'}{level === 'LOW' }
       {c.label}
     </span>
   );
