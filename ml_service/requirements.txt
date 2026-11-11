@@ -1,6 +1,8 @@
-# PROVISIONAL — target Python 3.12. Verified when the venv is created in Phase 2.
+# Python 3.12. Verified in Phase 2 (pip check clean).
 # numpy is held at 2.0.x because numba (a shap dependency) does not yet support newer numpy.
+# scipy is pinned because newer releases emit OptimizeWarnings with scikit-learn 1.5.x.
 numpy==2.0.2
+scipy==1.14.1
 pandas==2.2.3
 scikit-learn==1.5.2
 xgboost==2.1.3
