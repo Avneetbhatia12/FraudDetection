@@ -19,7 +19,7 @@ React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via t
 |---|---|---|
 | 0 | Safety net: DB backup, API regression baseline (`tools/smoke`) | Done |
 | 1 | Data foundation: additive schema, synthetic dataset, role middleware | Done (schema not yet applied) |
-| 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level) | **In progress.** Dataset, preprocessing and features done; training is waiting for approval |
+| 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level); ablation | **Done, awaiting review.** See [reports/model_comparison.md](reports/model_comparison.md) |
 | 3 | SHAP explanations | |
 | 4 | FastAPI service, hybrid engine, Express integration behind `ML_ENABLED` | |
 | 5 | AI dashboard and investigation UI | |
@@ -44,13 +44,24 @@ The earlier synthetic-data prototype (commit `c2341d9`) is superseded and recove
 
 ## Commands (run from `ml_service/`)
 ```bash
+# environment
 py -3.12 -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.lock.txt
-.venv/Scripts/python.exe scripts/download_kaggle_provider_fraud.py            # fetch and verify raw data (git-ignored)
-.venv/Scripts/python.exe exploration/explore_kaggle_provider_fraud.py          # reports/dataset_exploration_kaggle.md
-.venv/Scripts/python.exe scripts/render_feature_docs.py                        # docs/FEATURES.md
+# data (git-ignored; verified against SHA-256 checksums)
+.venv/Scripts/python.exe scripts/download_kaggle_provider_fraud.py
+.venv/Scripts/python.exe exploration/explore_kaggle_provider_fraud.py   # reports/dataset_exploration_kaggle.md
+# training pipeline (about 4 minutes in total)
+.venv/Scripts/python.exe training/train.py       # CV tuning, model selection, final fit, Isolation Forests -> artifacts/<run>/
+.venv/Scripts/python.exe training/ablation.py    # feature-group ablation (CV, development providers only)
+.venv/Scripts/python.exe training/evaluate.py    # one-time held-out test evaluation -> reports/model_comparison.md
+# inference with saved artifacts (never retrains)
+.venv/Scripts/python.exe scripts/score.py --providers test
+.venv/Scripts/python.exe scripts/score.py --claims --percentile 95
+# docs and tests
+.venv/Scripts/python.exe scripts/render_feature_docs.py
 .venv/Scripts/python.exe -m unittest discover -s tests -v
 ```
+Runs are deterministic (seed 42): re-running `train.py` reproduces the same CV results and models.
 
 ## Layout
 | Path | Purpose |
@@ -63,7 +74,13 @@ py -3.12 -m venv .venv
 | `fraud_ml/features_provider.py` | Provider-level features and their documentation spec |
 | `fraud_ml/features_claim.py` | Claim-level Isolation Forest features and their spec |
 | `fraud_ml/pipeline.py` | Shared preparation step |
+| `fraud_ml/cv.py` | Leakage-safe CV folds and final matrices (statistics refitted per fold) |
+| `fraud_ml/models.py` | LR / RF / XGBoost definitions, class weighting, tuning grids |
+| `fraud_ml/metrics.py` | Metrics, confusion matrices, F1-optimal threshold, bootstrap CIs |
+| `fraud_ml/anomaly.py` | Isolation Forest per claim type, configurable thresholds |
+| `fraud_ml/artifacts.py`, `fraud_ml/predict.py` | Artifact storage; inference only (loads, never trains) |
+| `training/train.py`, `ablation.py`, `evaluate.py`, `report.py` | Training, ablation, test evaluation, report rendering |
 | `docs/FEATURES.md` | Feature dictionary, generated from the specs |
 | `exploration/` | Dataset exploration report generator |
-| `scripts/` | Data download; documentation rendering |
+| `scripts/` | Data download, documentation rendering, scoring CLI |
 | `training/generate_synthetic.py` | Synthetic generator (pipeline testing only) |

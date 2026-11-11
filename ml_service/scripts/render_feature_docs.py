@@ -20,8 +20,8 @@ def main() -> None:
          "never an input, and it is not a verified fraud finding.", "",
          "## Prediction time", "",
          "| Model | Unit | Scored when | May use |", "|---|---|---|---|",
-         "| Supervised (LR / RF / XGBoost) | Provider | End of the observation period | That provider's claims in the period, its patients' profiles, label-free network counts, reference statistics fitted on training providers |",
-         "| Isolation Forest | Claim | When the claim is submitted | The claim's own fields, the patient's clinical profile, that patient's claims on **earlier dates**, reference statistics fitted on training providers |",
+         "| Supervised (LR / RF / XGBoost) | Provider | End of the observation period: **provider-level risk, not real-time claim-level fraud** | That provider's claims in the period, its patients' profiles (including year-end annual totals, which fall within the period), and network counts and reference statistics fitted on **training providers only** |",
+         "| Isolation Forest (one per claim type) | Claim | When the claim is submitted | The claim's own fields, the patient's clinical profile, that patient's claims on **earlier dates**, reference statistics fitted on training providers. Inpatient and outpatient claims get separate forests and thresholds. |",
          "", f"## Provider-level features ({len(fp.FEATURES)})", "",
          "Size-dependent features (marked ●) are kept for the main model. A volume-only baseline and per-size-group "
          "results will show how much of the signal is just provider size.", "",
@@ -35,6 +35,7 @@ def main() -> None:
     L += ["", "## Excluded from all model inputs", "",
           "| Item | Reason |", "|---|---|",
           "| `PotentialFraud`, and anything computed from labels (e.g. the share of a physician's providers that are flagged) | Target leakage. Shared patients and physicians would carry test labels into training. |",
+          "| Held-out providers' claims, in any fitted statistic | Network counts, code rarity and reference amounts are fitted on training providers only (per CV fold, then on all development providers) |",
           "| `Race`, `Gender` | Sensitive attributes. Also, their codes are undocumented. These columns are not even loaded. |",
           "| `DOB` / patient age | Sensitive demographic attribute (age); excluded under the project's fairness rule |",
           "| `State`, `County` as categories | Geography can stand in for demographics. Only the *count* of distinct states a provider serves is used. |",

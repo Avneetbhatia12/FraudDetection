@@ -105,7 +105,22 @@ class ProviderFeatureTests(unittest.TestCase):
         self.assertEqual(p2["share_inpatient"], 0)
         self.assertEqual(p2["ip_los_mean"], 0)                             # documented default when no inpatient claims
         self.assertAlmostEqual(p2["share_zero_amount"], 1.0)
-        self.assertEqual(p1["patient_mean_n_providers"], 1.5)              # B1 uses 1 provider, B2 uses 2
+
+    def test_network_uses_training_providers_only(self):
+        both = provider_matrix(self.static, self.c, ReferenceStats().fit(self.c), ["P1", "P2"])
+        self.assertEqual(both.loc["P1", "patient_mean_other_providers"], 0.5)   # B1: 0 others, B2: 1 other (P2)
+        self.assertEqual(both.loc["P2", "patient_mean_other_providers"], 1.0)   # B2 also uses P1
+        # P2 held out: reference built from P1's claims only
+        ref = ReferenceStats().fit(self.c[self.c["Provider"] == "P1"])
+        X = provider_matrix(self.static, self.c, ref, ["P1", "P2"])
+        self.assertEqual(X.loc["P1", "patient_mean_other_providers"], 0.0)      # held-out P2 does not count
+        self.assertEqual(X.loc["P2", "patient_mean_other_providers"], 1.0)      # held-out provider sees training P1
+        # Adding more held-out claims must not change any training provider's features
+        extra = raw_claims(ROWS + [("C7", "B1", "P2", "2009-05-01", "2009-05-01", 50, "4019", 0)])
+        b = preprocessing.clean_beneficiaries(bene_table(["B1", "B2"]))
+        c2 = preprocessing.add_patient_history(preprocessing.build_claim_table(extra, b))
+        X2 = provider_matrix(provider_static_features(c2), c2, ReferenceStats().fit(c2[c2["Provider"] == "P1"]), ["P1"])
+        pd.testing.assert_series_equal(X.loc["P1"], X2.loc["P1"])
 
     def test_reference_stats_only_see_fit_claims(self):
         ref = ReferenceStats().fit(self.c[self.c["Provider"] == "P1"])     # "training provider" = P1 only
@@ -128,6 +143,43 @@ class ClaimFeatureTests(unittest.TestCase):
         self.assertFalse(X.isna().any().any())
         for banned in ("Provider", "provider", "annual"):
             self.assertFalse(any(banned in col for col in X.columns))
+
+
+class MetricsTests(unittest.TestCase):
+    def test_confusion_matrix_and_threshold(self):
+        from fraud_ml.metrics import classification_metrics, threshold_max_f1
+        y = np.array([0, 0, 0, 1, 1])
+        p = np.array([0.1, 0.2, 0.7, 0.8, 0.9])
+        m = classification_metrics(y, p, 0.75)
+        self.assertEqual(m["confusion_matrix"], {"tn": 3, "fp": 0, "fn": 0, "tp": 2})
+        self.assertEqual(m["precision"], 1.0)
+        self.assertEqual(m["recall"], 1.0)
+        self.assertAlmostEqual(threshold_max_f1(y, p), 0.8)
+
+
+class AnomalyTests(unittest.TestCase):
+    def test_per_type_forests_do_not_just_flag_inpatient(self):
+        """Inpatient claims are rare and expensive. A global forest flags them by default;
+        the per-type design must flag each type at roughly the chosen percentile."""
+        from fraud_ml import anomaly
+        rng = np.random.default_rng(1)
+        rows = []
+        for i in range(1500):
+            ip = int(i < 120)                                   # 8% inpatient
+            amt = float(rng.lognormal(9.0 if ip else 5.0, 0.4))
+            d = pd.Timestamp("2009-01-01") + pd.Timedelta(days=int(rng.integers(0, 300)))
+            rows.append((f"C{i}", f"B{i % 400}", f"P{i % 30}", str(d.date()), str(d.date()), amt, "4019", ip))
+        b = preprocessing.clean_beneficiaries(bene_table([f"B{i}" for i in range(400)]))
+        c = preprocessing.add_patient_history(preprocessing.build_claim_table(raw_claims(rows), b))
+        ref = ReferenceStats().fit(c)
+        per_type = anomaly.score_claims(c, anomaly.fit_isolation_forest(c, ref, "per_type"), percentile=90)
+        rates = per_type.groupby("is_inpatient")["is_anomaly"].mean()
+        self.assertAlmostEqual(rates[0], 0.10, delta=0.03)
+        self.assertAlmostEqual(rates[1], 0.10, delta=0.05)
+        glob = anomaly.score_claims(c, anomaly.fit_isolation_forest(c, ref, "global"), percentile=90)
+        self.assertGreater(glob.loc[glob.is_anomaly == 1, "is_inpatient"].mean(), 0.5)   # the problem the design avoids
+        abs_thr = anomaly.score_claims(c, anomaly.fit_isolation_forest(c, ref, "per_type"), threshold=1e9)
+        self.assertEqual(int(abs_thr["is_anomaly"].sum()), 0)                             # absolute threshold honoured
 
 
 class SplitTests(unittest.TestCase):

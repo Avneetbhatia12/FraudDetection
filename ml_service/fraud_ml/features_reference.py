@@ -18,12 +18,20 @@ class ReferenceStats:
     dx_median: dict = field(default_factory=dict)         # (is_inpatient, primary_dx) -> median amount
     drg_median: dict = field(default_factory=dict)        # DRG -> median inpatient amount
     type_median: dict = field(default_factory=dict)       # is_inpatient -> median amount (fallback)
+    # Label-free network counts, from reference (training-provider) claims only
+    bene_n_providers: dict = field(default_factory=dict)       # BeneID -> distinct reference providers
+    attending_n_providers: dict = field(default_factory=dict)  # AttendingPhysician -> distinct reference providers
+    ref_providers: frozenset = frozenset()
     n_ref_claims: int = 0
     fitted: bool = False
 
     def fit(self, ref_claims: pd.DataFrame) -> "ReferenceStats":
         r = ref_claims
         self.n_ref_claims = int(len(r))
+        self.ref_providers = frozenset(r["Provider"].astype("string").unique())
+        self.bene_n_providers = r.groupby(r["BeneID"].astype("string"))["Provider"].nunique().to_dict()
+        att = r.dropna(subset=["attending"])
+        self.attending_n_providers = att.groupby(att["attending"].astype("string"))["Provider"].nunique().to_dict()
         self.dx_count = r["primary_dx"].astype("string").value_counts().to_dict()
         self.type_median = r.groupby("is_inpatient")["amount"].median().to_dict()
         g = r.groupby(["is_inpatient", r["primary_dx"].astype("string")])["amount"].agg(["median", "size"])

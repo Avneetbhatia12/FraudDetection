@@ -1,8 +1,9 @@
 """
 Provider-level features for supervised fraud-risk prediction (one row per provider).
 
-Prediction time: the end of the observation period. A provider is scored from the claims it
-filed in that period. Every feature uses only claims, beneficiary profiles and reference statistics
+Prediction time: the end of the observation period. This model predicts PROVIDER-LEVEL risk
+(reproducing the dataset's PotentialFraud provider labels); it is NOT a real-time claim-level
+fraud detector. A provider is scored from the claims it filed in that period. Every feature uses only claims, beneficiary profiles and reference statistics
 fitted on TRAINING providers. PotentialFraud and any label-derived value are never inputs.
 
 Two parts:
@@ -68,19 +69,29 @@ SPEC: dict[str, tuple[str, str, str, str, bool]] = {
     "patient_log_ip_annual_mean": ("Patient mix", "IPAnnualReimbursementAmt", "mean log1p(annual inpatient total, negatives clipped to 0)", "Patients' overall utilisation (year-end value; available at period-end prediction time)", False),
     "patient_log_op_annual_mean": ("Patient mix", "OPAnnualReimbursementAmt", "mean log1p(annual outpatient total, clipped)", "Patients' overall utilisation", False),
     "log_n_states_served": ("Patient mix", "State (count only)", "log1p(distinct patient states)", "Geographically implausible patient base (state is never a direct input)", True),
-    # ── Network (label-free) ──
-    "patient_mean_n_providers": ("Network", "BeneID, Provider (all labelled-file claims)", "mean over the provider's patients of how many providers each patient uses", "Doctor-shopping / shared patients (no labels used)", False),
-    "attending_mean_n_providers": ("Network", "AttendingPhysician, Provider (all labelled-file claims)", "mean over the provider's attending physicians of how many providers each bills under", "Physicians spread across many providers (no labels used)", False),
     # ── Fitted on training providers only ──
+    "patient_mean_other_providers": ("Network", "BeneID, Provider (training providers' claims only)", "mean over the provider's patients of how many OTHER training providers each patient also uses", "Shared patients / doctor-shopping (no labels; held-out providers' claims never contribute)", False),
+    "attending_mean_other_providers": ("Network", "AttendingPhysician, Provider (training providers' claims only)", "mean over the provider's attending physicians of how many OTHER training providers each also bills under", "Physicians spread across providers (no labels; training providers only)", False),
     "share_rare_primary_dx": ("Fitted", "ClmDiagnosisCode_1", "share of claims whose primary code appears < 5 times in training providers' claims", "Unusual coding", False),
     "mean_log_amount_vs_dx_ref": ("Fitted", "amount, ClmDiagnosisCode_1", "mean over paid claims of log1p(amount) - log1p(training median amount for same claim type and primary code)", "Overbilling relative to peers for the same diagnosis", False),
     "ip_mean_log_amount_vs_drg_ref": ("Fitted", "amount, DiagnosisGroupCode", "mean over paid inpatient claims of log1p(amount) - log1p(training median for the same DRG); 0 if none", "Overbilling relative to peers for the same DRG", False),
 }
 
-STATIC = [k for k, v in SPEC.items() if v[0] != "Fitted"]
-FITTED = [k for k, v in SPEC.items() if v[0] == "Fitted"]
+FITTED = [k for k, v in SPEC.items() if v[0] in ("Fitted", "Network")]   # need ReferenceStats (training providers)
+STATIC = [k for k in SPEC if k not in FITTED]                            # provider's own claims only
 FEATURES = list(SPEC)
 VOLUME_FEATURES = [k for k, v in SPEC.items() if v[4]]
+
+# Feature groups for the ablation study (each group = union of spec groups / named features)
+_G = {g: [k for k, v in SPEC.items() if v[0] == g] for g in {v[0] for v in SPEC.values()}}
+ABLATION_GROUPS = {
+    "Volume-only baseline": ["log_n_claims", "log_n_patients", "log_n_attending", "active_months", "claims_per_active_month"],
+    "Volume + amounts": _G["Volume"] + _G["Amounts"],
+    "Patient history": _G["Timing"] + _G["Patient mix"],
+    "Diagnosis & procedure": _G["Coding"] + _G["Inpatient"] + _G["Fitted"],
+    "Provider/physician network": _G["Network"],
+    "All approved features": FEATURES,
+}
 
 
 def _type_stats(c: pd.DataFrame, flag: int, prefix: str) -> pd.DataFrame:
@@ -159,12 +170,6 @@ def provider_static_features(c: pd.DataFrame) -> pd.DataFrame:
     f["patient_log_op_annual_mean"] = np.log1p(pairs["op_annual_amt"].astype("float64")).groupby(pairs["Provider"], observed=True).mean()
     f["log_n_states_served"] = np.log1p(gp["State"].nunique())
 
-    bene_nprov = c.groupby("BeneID", observed=True)["Provider"].nunique()
-    f["patient_mean_n_providers"] = pairs["BeneID"].map(bene_nprov).astype("float64").groupby(pairs["Provider"], observed=True).mean()
-    att = c.dropna(subset=["attending"]).drop_duplicates(["Provider", "attending"])
-    att_nprov = c.groupby("attending", observed=True)["Provider"].nunique()
-    f["attending_mean_n_providers"] = att["attending"].map(att_nprov).astype("float64").groupby(att["Provider"], observed=True).mean()
-
     # Structural absences (no inpatient/outpatient claims, no repeats, <2 claims for std) -> documented defaults
     f["median_days_between_patient_claims"] = f["median_days_between_patient_claims"].fillna(400)
     f = f.fillna(0.0)
@@ -184,7 +189,22 @@ def provider_fitted_features(c: pd.DataFrame, ref: ReferenceStats) -> pd.DataFra
         "share_rare_primary_dx": sig["dx_rare"].groupby(P, observed=True).mean(),
         "mean_log_amount_vs_dx_ref": sig["log_amount_vs_dx_ref"][paid].groupby(P[paid], observed=True).mean(),
         "ip_mean_log_amount_vs_drg_ref": sig["log_amount_vs_drg_ref"][paid].groupby(P[paid], observed=True).mean(),
-    }).fillna(0.0)
+    })
+
+    # Network: count OTHER reference providers. A reference (training) provider appears in the
+    # reference counts itself, so subtract 1 for it; a held-out provider never does.
+    def other_providers(keys: pd.Series, prov: pd.Series, table: dict) -> pd.Series:
+        n_ref = keys.astype("string").map(table).fillna(0).astype("float64")
+        self_in_ref = prov.astype("string").isin(ref.ref_providers).astype("float64")
+        return (n_ref - self_in_ref).clip(lower=0)
+
+    pairs = c.drop_duplicates(["Provider", "BeneID"])
+    f["patient_mean_other_providers"] = other_providers(pairs["BeneID"], pairs["Provider"], ref.bene_n_providers) \
+        .groupby(pairs["Provider"], observed=True).mean()
+    att = c.dropna(subset=["attending"]).drop_duplicates(["Provider", "attending"])
+    f["attending_mean_other_providers"] = other_providers(att["attending"], att["Provider"], ref.attending_n_providers) \
+        .groupby(att["Provider"], observed=True).mean()
+    f = f.fillna(0.0)
     f.index = f.index.astype("string")
     f.index.name = "Provider"
     return f[FITTED].astype("float32")
