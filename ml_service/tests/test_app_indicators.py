@@ -120,17 +120,6 @@ class ClaimIndicatorTests(unittest.TestCase):
         self.assertEqual(ind(assess_claim(data(base[:4] + [(20, "2024-11-20", 10, "Flu", 3, 1)]), 20), "provider_volume_surge")["status"],
                          "insufficient_history")
 
-    def test_no_look_ahead(self):
-        """Claims inserted later (higher CLAIM_ID), even with earlier or identical dates, never change an earlier claim's result."""
-        rows = [(1, "2024-05-01", 1000, "Flu", 1, 1), (2, "2024-05-10", 1000, "Flu", 1, 1)]
-        before = assess_claim(data(rows), 2)
-        later = rows + [(3, "2024-05-09", 1000, "Flu", 1, 1),      # back-dated, same patient/provider/dx: would be a "duplicate"
-                        (4, "2024-05-10", 9999, "Flu", 2, 1),      # same day
-                        (5, "2024-04-20", 50, "Flu", 1, 2)]        # earlier date
-        after = assess_claim(data(later), 2)
-        self.assertEqual(before, after)
-        self.assertEqual(assess_claim(data(later), 3)["history_claims_used"], 2)
-
     def test_reproducible(self):
         d = data([(1, "2024-05-01", 1000, "Flu", 1, 1), (2, "2024-05-03", 1000, "Flu", 1, 1)])
         self.assertEqual(assess_claim(d, 2), assess_claim(d, 2))
@@ -158,6 +147,143 @@ class ClaimIndicatorTests(unittest.TestCase):
     def test_unknown_claim(self):
         with self.assertRaises(KeyError):
             assess_claim(data([(1, "2024-05-01", 10, "Flu", 1, 1)]), 99)
+
+
+def comparable(a: dict) -> list:
+    """Indicator results without claim identities (for comparing datasets whose CLAIM_IDs differ)."""
+    return [(i["code"], i["value"], i["status"], i["triggered"], len(i["comparison_claim_ids"])) for i in a["indicators"]] + \
+           [a["review_priority"], a["triggered_count"], a["assessment_status"]]
+
+
+class TimelineTests(unittest.TestCase):
+    """Indicator set v2: service-date history within the snapshot; CLAIM_ID never defines order."""
+
+    BURST = [("2024-05-01", 100, "Flu"), ("2024-05-04", 100, "Cold"), ("2024-05-07", 100, "Rash"), ("2024-05-10", 100, "Cough")]
+
+    def _by_date(self, ordered_rows):
+        rows = [(i + 1, dt, amt, dx, 1, 1) for i, (dt, amt, dx) in enumerate(ordered_rows)]
+        d = data(rows)
+        return {str(r.CLAIM_DATE.date()): comparable(assess_claim(d, int(r.CLAIM_ID))) for r in d.claims.itertuples()}
+
+    def test_results_independent_of_insertion_order(self):
+        import itertools
+        reference = self._by_date(self.BURST)
+        for perm in itertools.permutations(self.BURST):          # all 24 insertion orders
+            self.assertEqual(self._by_date(list(perm)), reference, perm)
+        get = lambda res, day: res[day][4][1]                    # noqa: E731  (patient_claims_prior_30d value)
+        self.assertEqual(get(reference, "2024-05-10"), 3)
+        self.assertEqual(get(self._by_date(list(reversed(self.BURST))), "2024-05-10"), 3)   # v1 returned 0 here
+
+    def test_later_dated_claims_beyond_window_do_not_change_result(self):
+        base = [(1, "2024-05-01", 100, "Flu", 1, 1), (2, "2024-05-03", 100, "Flu", 1, 1)]
+        before = assess_claim(data(base), 2)
+        later = base + [(3, "2024-05-11", 100, "Flu", 1, 1),     # 8 days after
+                        (4, "2024-08-01", 999, "Flu", 2, 1),     # months after, same patient
+                        (5, "2024-05-20", 100, "Flu", 3, 1)]     # other patient, later
+        after = assess_claim(data(later), 2)
+        self.assertEqual(before["indicators"], after["indicators"])
+        self.assertEqual(before["indicators_digest"], after["indicators_digest"])
+        self.assertEqual((before["snapshot_claim_count"], after["snapshot_claim_count"]), (2, 5))   # provenance differs, digest does not
+
+    def test_backdated_claim_entered_later_updates_affected_assessments(self):
+        base = [(1, "2024-06-10", 100, "Flu", 1, 1)]
+        a1 = assess_claim(data(base), 1)
+        b = data(base + [(2, "2024-06-08", 100, "Cold", 1, 2)])  # older service date, entered later
+        a2 = assess_claim(b, 1)
+        self.assertEqual(ind(a1, "days_since_patient_previous_claim")["status"], "not_applicable")
+        self.assertEqual((ind(a2, "days_since_patient_previous_claim")["value"], ind(a2, "days_since_patient_previous_claim")["triggered"]), (2, True))
+        self.assertEqual(ind(a2, "days_since_patient_previous_claim")["comparison_claim_ids"], [2])
+        self.assertNotEqual(a1["indicators_digest"], a2["indicators_digest"])
+        self.assertEqual(ind(assess_claim(b, 2), "patient_claims_prior_30d")["value"], 0)    # claim 1 is dated after claim 2
+
+    def test_duplicates_found_before_and_after_within_window(self):
+        rows = [(1, "2024-06-05", 900, "Flu", 1, 1),             # assessed claim
+                (2, "2024-06-01", 900, "flu", 1, 1),             # 4 days before (entered later)
+                (3, "2024-06-12", 905, "Flu", 2, 1),             # 7 days after, same patient (other policy), 0.6% apart
+                (4, "2024-06-13", 900, "Flu", 1, 1),             # 8 days after: outside window
+                (5, "2024-06-06", 900, "Flu", 3, 1)]             # other patient
+        i = ind(assess_claim(data(rows), 1), "near_duplicate_claims")
+        self.assertEqual((i["value"], i["comparison_claim_ids"], i["triggered"]), (2, [2, 3], True))
+        self.assertEqual(ind(assess_claim(data(rows), 2), "near_duplicate_claims")["comparison_claim_ids"], [1])   # symmetric
+
+    def test_assessed_claim_excluded_from_its_own_history(self):
+        rows = [(1, "2024-06-05", 900, "Flu", 1, 1), (2, "2024-06-05", 900, "Flu", 1, 1)]    # same day, identical
+        a = assess_claim(data(rows), 1)
+        for i in a["indicators"]:
+            self.assertNotIn(1, i["comparison_claim_ids"], i["code"])
+        self.assertEqual(ind(a, "near_duplicate_claims")["comparison_claim_ids"], [2])
+        self.assertEqual(ind(a, "days_since_patient_previous_claim")["value"], 0)
+        self.assertEqual(a["prior_history_claim_count"], 1)
+        solo = assess_claim(data(rows[:1]), 1)
+        self.assertEqual((ind(solo, "near_duplicate_claims")["value"], solo["prior_history_claim_count"]), (0, 0))
+
+    def test_comparison_ids_and_snapshot_counts(self):
+        rows = [(1, "2024-05-01", 100, "A", 1, 1), (2, "2024-05-20", 100, "B", 2, 2), (3, "2024-05-25", 100, "C", 1, 1),
+                (4, "2024-03-01", 100, "D", 1, 1), (5, "2024-06-30", 100, "E", 1, 1), (6, "2024-05-24", 100, "F", 3, 1)]
+        a = assess_claim(data(rows), 3)                          # patient 100, 2024-05-25
+        self.assertEqual(a["snapshot_claim_count"], 6)
+        self.assertEqual(a["prior_history_claim_count"], 4)      # claims 1, 2, 4, 6 (claim 5 is later-dated)
+        self.assertEqual(ind(a, "patient_claims_prior_30d")["comparison_claim_ids"], [1, 2])   # claim 4 is > 30 days before
+        self.assertEqual(ind(a, "days_since_patient_previous_claim")["comparison_claim_ids"], [2])
+        for i in a["indicators"]:
+            self.assertEqual(i["comparison_claim_ids"], sorted(i["comparison_claim_ids"]))
+            self.assertNotIn(5, i["comparison_claim_ids"])       # later-dated, outside the duplicate window
+
+    def test_digest_deterministic_and_sensitive(self):
+        from app_risk import snapshots
+        rows = [(1, "2024-05-01", 100, "Flu", 1, 1), (2, "2024-05-03", 100, "Flu", 1, 1)]
+        a, b = assess_claim(data(rows), 2), assess_claim(data(list(reversed(rows))), 2)
+        self.assertEqual(a["indicators_digest"], b["indicators_digest"])                        # order-independent
+        self.assertEqual(a["indicators_digest"], snapshots.assessment_digest(a))                 # recomputable
+        self.assertRegex(a["indicators_digest"], r"^[0-9a-f]{64}$")
+        changed_value = assess_claim(data([(1, "2024-05-01", 100, "Flu", 1, 1), (2, "2024-05-03", 6000, "Flu", 1, 1)]), 2)
+        changed_set = assess_claim(data(rows + [(3, "2024-04-20", 100, "Cold", 1, 2)]), 2)      # comparison set grows
+        rules = assess_claim(data(rows, rule_hits=pd.DataFrame([{"CLAIM_ID": 2, "RULE_ID": 1, "RULE_NAME": "X"}])), 2)
+        digests = {a["indicators_digest"], changed_value["indicators_digest"], changed_set["indicators_digest"], rules["indicators_digest"]}
+        self.assertEqual(len(digests), 4)
+        bumped = dict(a, indicator_set_version="9.9.9")
+        self.assertNotEqual(snapshots.assessment_digest(bumped), a["indicators_digest"])
+        provenance_only = dict(a, snapshot_claim_count=999, prior_history_claim_count=999, disclaimer="x")
+        self.assertEqual(snapshots.assessment_digest(provenance_only), a["indicators_digest"])
+
+    def test_previous_snapshots_preserved_on_new_assessment(self):
+        """Simulates the future Express rule against an append-only store: append only when the digest changes."""
+        from app_risk import snapshots
+        store: list[dict] = []
+
+        def record(assessment):
+            valid = [s for s in store if s.get("assessment_status") != "failed"]              # CLAIM_LATEST_VALID_ASSESSMENT
+            latest = valid[-1]["indicators_digest"] if valid else None
+            if snapshots.snapshot_decision(latest, assessment) == "append":
+                store.append(dict(assessment))
+            return len(store)
+
+        base = [(1, "2024-06-10", 100, "Flu", 1, 1)]
+        first = assess_claim(data(base), 1)
+        self.assertEqual(record(first), 1)
+        self.assertEqual(record(assess_claim(data(base), 1)), 1)                                 # unchanged: nothing appended
+        store.append({"assessment_status": "failed", "indicators_digest": None})               # a timeout is recorded...
+        self.assertEqual(record(assess_claim(data(base), 1)), 2)                                 # ...but is not the baseline: no duplicate
+        store.pop()                                                                              # (keep the rest of the scenario simple)
+        self.assertEqual(record(assess_claim(data(base + [(2, "2024-09-01", 5, "X", 3, 2)]), 1)), 1)   # unrelated later claim
+        second = assess_claim(data(base + [(3, "2024-06-08", 100, "Cold", 1, 2)]), 1)            # back-dated: content changes
+        self.assertEqual(record(second), 2)
+        self.assertEqual(store[0], first)                                                        # first snapshot intact
+        self.assertNotEqual(store[0]["indicators_digest"], store[1]["indicators_digest"])
+
+    def test_training_snapshot_selection(self):
+        from datetime import datetime
+        from app_risk.snapshots import select_training_snapshot
+        snaps = [{"assessment_id": 1, "assessed_at": datetime(2024, 6, 1, 9), "assessment_status": "completed"},
+                 {"assessment_id": 2, "assessed_at": datetime(2024, 6, 3, 9), "assessment_status": "failed"},
+                 {"assessment_id": 3, "assessed_at": datetime(2024, 6, 5, 9), "assessment_status": "completed"},
+                 {"assessment_id": 4, "assessed_at": datetime(2024, 6, 9, 9), "assessment_status": "completed"}]
+        decided = datetime(2024, 6, 6, 12)
+        self.assertEqual(select_training_snapshot(snaps, decided)["assessment_id"], 3)               # latest before the decision
+        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=1)["assessment_id"], 1)
+        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=4)["assessment_id"], 3)  # created after: rejected
+        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=2)["assessment_id"], 3)  # failed: rejected
+        self.assertIsNone(select_training_snapshot(snaps, datetime(2024, 5, 1)))
 
 
 class ProviderProfileTests(unittest.TestCase):

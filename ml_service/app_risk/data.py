@@ -80,7 +80,8 @@ def load_from_mysql(host: str, port: int, user: str, password: str, database: st
     try:
         with conn.cursor() as cur:
             cur.execute("SET SESSION TRANSACTION READ ONLY")
-            cur.execute("START TRANSACTION READ ONLY")       # one consistent snapshot for all four queries
+            # One consistent InnoDB snapshot for all four queries = the assessment's "knowledge" timeline.
+            cur.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY")
             frames = {}
             for name, sql in SQL.items():
                 cur.execute(sql)

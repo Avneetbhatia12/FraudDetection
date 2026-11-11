@@ -1,6 +1,6 @@
 # Phase 4: Integration architecture (approved three-track design)
 
-Status: **4.0, 4.1 and 4.2 implemented and tested.** Not yet done: Express integration (4.4), database migration
+Status: **4.0, 4.1 and 4.2 implemented and tested; claim-history correction (indicator set 2.0.0) applied in code.** Not yet done: Express integration (4.4), database migration
 (not applied), frontend (Phase 5).
 
 ## 1. Decision summary
@@ -64,7 +64,7 @@ All `/v1/*` routes require `X-ML-API-Key`. The service refuses to start without 
 |---|---|---|---|
 | GET | `/health` | `{status, service, version}` (no auth, no internals) | — |
 | GET | `/v1/status` | indicator-set version, `application_database: reachable/unreachable`, research availability and run ID | 401 |
-| GET | `/v1/claims/{claim_id}/indicators` | `ClaimAssessment` (`kind: claim_level_indicators`): rule hits, 8 indicators, triggered count, review priority + reasons, disclaimer | 401, 404 unknown claim, 422 invalid ID, 503 DB unavailable (no details leaked) |
+| GET | `/v1/claims/{claim_id}/indicators` | `ClaimAssessment` (`kind: claim_level_indicators`): rule hits, 8 indicators (each with `comparison_claim_ids`), triggered count, review priority + reasons, `snapshot_claim_count`, `prior_history_claim_count`, `indicators_digest` (SHA-256), `digest_scope`, `assessed_at`, disclaimer | 401, 404 unknown claim, 422 invalid ID, 503 DB unavailable (no details leaked) |
 | GET | `/v1/providers/{provider_id}/indicators?as_of=YYYY-MM-DD` | `ProviderProfile` (`kind: provider_level_indicators`): 10 indicators with peer references | 401, 404, 422, 503 |
 | GET | `/v1/research/models` | `ResearchEnvelope` (`kind: research_benchmark`, `scope.applies_to_live_application_data: false`): CV/test metrics, ablation, compatible-feature experiment | 401, 503 |
 | GET | `/v1/research/shap/global` | envelope: base value, checks, global and group importance | 401, 503 |
@@ -79,7 +79,7 @@ during the assessment. Storing results is Express's job.
 | Method | Path | Roles | Behaviour |
 |---|---|---|---|
 | GET | `/api/ai/status` | any | ML service reachable? `ML_ENABLED`? |
-| GET | `/api/ai/claims/:id/assessment` | any | latest `CLAIM_LATEST_ASSESSMENT`; if none, call FastAPI and append a `CLAIM_RISK_ASSESSMENT` row (`completed` / `insufficient_data` / `failed`) |
+| GET | `/api/ai/claims/:id/assessment` | any | call FastAPI; compare `indicators_digest` with `CLAIM_LATEST_VALID_ASSESSMENT`; **append** a new `CLAIM_RISK_ASSESSMENT` snapshot only if it differs or none exists (never update); on failure append a `failed` row and show the latest valid snapshot |
 | POST | `/api/ai/claims/:id/assessment` | Admin, Investigator | recompute (`TRIGGER_SOURCE='manual_recompute'`) |
 | GET | `/api/ai/providers/:id/profile` | any | latest or new `PROVIDER_RISK_PROFILE` |
 | GET | `/api/ai/claims/:id/outcomes` | any | outcome history |
@@ -91,11 +91,28 @@ Existing routes (`/api/claims`, `/api/fraud-*`, …) are unchanged; `POST /api/c
 ## 5. Database (revised `database/ml_schema.sql`, NOT applied)
 
 New objects only: `MODEL_REGISTRY`, `CLAIM_RISK_ASSESSMENT`, `PROVIDER_RISK_PROFILE`, `CLAIM_INVESTIGATION_OUTCOME`; append-only
-triggers on these four tables; the views `CLAIM_LATEST_ASSESSMENT`, `PROVIDER_LATEST_PROFILE`, `CLAIM_LATEST_OUTCOME`. No
+triggers on these four tables; the views `CLAIM_LATEST_ASSESSMENT` (latest attempt, may be failed), `CLAIM_LATEST_VALID_ASSESSMENT`
+(latest non-failed snapshot = digest baseline), `PROVIDER_LATEST_PROFILE`, `CLAIM_LATEST_OUTCOME`, `OUTCOME_TRAINING_SNAPSHOT`
+(training rule, §5a). `CLAIM_RISK_ASSESSMENT` records `INDICATOR_SET_VERSION`, `SNAPSHOT_CLAIM_COUNT` and `INDICATORS_DIGEST CHAR(64)`
+(replacing the earlier `HISTORY_CUTOFF_CLAIM_ID`); non-failed rows must have all three, with a well-formed digest. No
 probability or combined-score column. CHECK constraints block marking a research model as live, block a supervised
 application model trained on Kaggle data, require an error message on failed rows, and only accept Admin/Investigator outcomes.
 Every table and column is documented inline in the SQL file. Rollback: `database/ml_schema_rollback.sql`.
 Validated in a throwaway schema (applies twice safely; 10 invalid operations rejected; rollback leaves only pre-existing tables).
+
+### 5a. Claim-history timelines, snapshots and the training rule (indicator set 2.0.0)
+
+- **Knowledge timeline:** an assessment sees exactly the claims in one consistent read-only snapshot taken at assessment time.
+- **Service-date timeline:** prior-history indicators use snapshot claims with `CLAIM_DATE` on or before the assessed claim's date
+  (excluding itself); duplicates are searched ±7 calendar days. **`CLAIM_ID` never determines order or history.** Version 1.0.0
+  (never deployed) used `CLAIM_ID < claim`; it missed bursts, repeat visits and duplicates entered out of date order.
+- **Snapshots:** each assessment records comparison claim IDs per indicator, the snapshot claim count, `assessed_at`, the indicator-set
+  version and a SHA-256 digest of its deterministic content. Express appends a new snapshot only when the digest differs from
+  `CLAIM_LATEST_VALID_ASSESSMENT` and never updates or deletes snapshots. A back-dated claim entered later therefore produces a new
+  snapshot for the affected later-dated claims, while the old one is kept.
+- **Training rule (Track 3):** supervised training must use, for each outcome, the snapshot that existed when the outcome was
+  recorded (`OUTCOME_TRAINING_SNAPSHOT`: the linked snapshot if it was assessed at or before the decision, else the latest non-failed
+  snapshot before it). Historical features are **never** recomputed with information entered later.
 
 **Recommended (not executed):** a dedicated read-only MySQL account for the ML service:
 ```sql
@@ -136,6 +153,10 @@ Only these two lines will be staged, via a reviewed partial patch (`git apply --
 - Most indicators currently report **insufficient history**, because the database holds 38 claims and most providers have 1–2.
   That is the correct, honest output, not a defect.
 - Thresholds are configured design choices, not learned (no labels exist). Changes require a new indicator-set version.
-- The claim history cutoff relies on `CLAIM_ID` following insertion order (true for AUTO_INCREMENT without manual IDs).
+- Claim history no longer depends on `CLAIM_ID` order (resolved in indicator set 2.0.0, §5a). Remaining caveat: without an insertion
+  timestamp on `CLAIM`, we cannot reconstruct what was known at a past moment. That is why stored snapshots, not recomputation,
+  are the record of what an investigator saw.
+- `comparison_claim_ids` lists every compared claim. That is small at current volume, but for large histories (e.g. provider-type history)
+  it will need summarising (counts plus a sample) to keep snapshots compact.
 - The service reloads the (small) application tables on every request. At larger volume, this should move to incremental queries.
 - Research outputs describe Kaggle providers only and inherit every Phase 2/3 limitation.

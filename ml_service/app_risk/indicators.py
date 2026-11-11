@@ -1,22 +1,29 @@
 """
 Application-native risk indicators (Track 2). Transparent statistics, NOT ML predictions.
 
-Claim-level history cutoff
---------------------------
-A claim's history is the set of claims inserted BEFORE it (CLAIM_ID < this claim's ID; CLAIM_ID is
-AUTO_INCREMENT, so it follows insertion order). Date windows (e.g. "last 30 days") are measured on
-CLAIM_DATE within that history. Consequences:
-  * no look-ahead: claims added later, including back-dated ones, never change an earlier claim's result;
-  * reproducible: re-assessing a claim later gives the same result.
+Two timelines (indicator set v2)
+--------------------------------
+1. Knowledge (what is known): the claims visible in ONE consistent, read-only database snapshot taken at
+   assessment time. Nothing outside the snapshot is ever used.
+2. Service date (what happened earlier): within the snapshot, comparisons use CLAIM_DATE only:
+     * prior-history indicators use snapshot claims with CLAIM_DATE <= the assessed claim's date,
+       excluding the assessed claim itself;
+     * duplicate detection uses snapshot claims within +/- DUPLICATE_WINDOW_DAYS calendar days.
+   CLAIM_ID never determines order or history. It is only used to identify claims (and to exclude the
+   assessed claim). The result therefore does not depend on the order in which claims were entered.
 
-Provider-level cutoff
----------------------
-A provider profile uses claims with CLAIM_DATE <= as_of. It is a dated snapshot (stored with its
-as_of date), compared with peer providers using the same cutoff.
+Consequences
+  * Claims dated more than DUPLICATE_WINDOW_DAYS after the assessed claim never change its result.
+  * A back-dated claim entered later DOES change the assessments of the later-dated claims it precedes
+    (new knowledge). Previous snapshots are kept; see snapshots.py (append-only, digest).
+  * Same snapshot, same result (deterministic).
+  * Future supervised training must use the snapshot that existed when an outcome was recorded
+    (snapshots.select_training_snapshot), never a recomputation with later information.
 
 Every indicator returns: code, level, name, value, reference, threshold, status
 ('ok' | 'insufficient_history' | 'not_applicable'), triggered (True/False, or None when it cannot be
-judged) and a plain-language reason. Inputs never include STATUS or APPROVED_AMOUNT.
+judged), a plain-language reason, and comparison_claim_ids (the snapshot claims it compared against).
+Inputs never include STATUS or APPROVED_AMOUNT.
 """
 from __future__ import annotations
 
@@ -27,6 +34,7 @@ import pandas as pd
 
 from . import config as C
 from .data import AppData
+from .snapshots import DIGEST_FIELDS, assessment_digest
 
 DISCLAIMER = ("Indicators are transparent statistics computed from this application's data with documented, "
               "configured thresholds. They are not machine-learning predictions, not probabilities and not evidence of fraud. "
@@ -40,26 +48,26 @@ CLAIM_SPEC = {
     "outside_policy_period": ("Claim date outside policy period", "CLAIM.CLAIM_DATE, POLICY.START_DATE, END_DATE",
                               "days before policy start or after policy end (0 if inside)",
                               "Service dated when the policy was not in force (not covered by the SQL rules)", "> 0 days"),
-    "amount_vs_diagnosis_median": ("Amount vs earlier claims with the same diagnosis", "CLAIM_AMOUNT, DIAGNOSIS (normalized)",
-                                   "claim amount / median amount of earlier claims with the same diagnosis",
+    "amount_vs_diagnosis_median": ("Amount vs earlier-dated claims with the same diagnosis", "CLAIM_AMOUNT, DIAGNOSIS (normalized), CLAIM_DATE",
+                                   "claim amount / median amount of snapshot claims with the same diagnosis dated on or before this claim",
                                    "Billing far above what this diagnosis usually costs here",
-                                   f">= {C.DIAGNOSIS_RATIO_THRESHOLD:g}x (needs >= {C.MIN_DIAGNOSIS_HISTORY} earlier claims)"),
-    "diagnosis_new_for_provider_type": ("Diagnosis not seen before for this provider type", "DIAGNOSIS, MEDICAL_PROVIDER.PROVIDER_TYPE",
-                                        "number of earlier claims with this diagnosis from providers of the same type",
+                                   f">= {C.DIAGNOSIS_RATIO_THRESHOLD:g}x (needs >= {C.MIN_DIAGNOSIS_HISTORY} earlier-dated claims)"),
+    "diagnosis_new_for_provider_type": ("Diagnosis not seen before for this provider type", "DIAGNOSIS, MEDICAL_PROVIDER.PROVIDER_TYPE, CLAIM_DATE",
+                                        "number of earlier-dated snapshot claims with this diagnosis from providers of the same type",
                                         "Possible mismatch between provider type and diagnosis",
-                                        f"= 0 (needs >= {C.MIN_PROVIDER_TYPE_HISTORY} earlier claims for the type)"),
-    "patient_claims_prior_30d": ("Patient's earlier claims in the last 30 days", "PATIENT (via POLICY), CLAIM_DATE",
-                                 "earlier claims of the same patient (any policy, any provider) dated within 30 days up to this claim",
+                                        f"= 0 (needs >= {C.MIN_PROVIDER_TYPE_HISTORY} earlier-dated claims for the type)"),
+    "patient_claims_prior_30d": ("Patient's other claims in the 30 days up to this claim", "PATIENT (via POLICY), CLAIM_DATE",
+                                 "other snapshot claims of the same patient (any policy, any provider) dated within the 30 days up to and including this claim's date",
                                  "Claim bursts for one patient", f">= {C.PATIENT_30D_THRESHOLD}"),
     "days_since_patient_previous_claim": ("Days since the patient's previous claim", "PATIENT (via POLICY), CLAIM_DATE",
-                                          "days between this claim and the patient's most recent earlier claim dated on or before it",
+                                          "days between this claim and the patient's most recent other claim dated on or before it",
                                           "Rapid repeat visits", f"<= {C.REPEAT_VISIT_DAYS_THRESHOLD} days"),
     "near_duplicate_claims": ("Possible duplicate submissions", "PATIENT, PROVIDER_ID, DIAGNOSIS, CLAIM_AMOUNT, CLAIM_DATE",
-                              f"earlier claims with the same patient, provider and diagnosis, amount within "
-                              f"{C.DUPLICATE_AMOUNT_TOLERANCE:.0%}, dated within {C.DUPLICATE_WINDOW_DAYS} days",
-                              "Duplicate or re-submitted bills", ">= 1"),
+                              f"other snapshot claims with the same patient, provider and diagnosis, amount within "
+                              f"{C.DUPLICATE_AMOUNT_TOLERANCE:.0%}, dated within {C.DUPLICATE_WINDOW_DAYS} calendar days before or after",
+                              "Duplicate or re-submitted bills (in either order)", ">= 1"),
     "provider_volume_surge": ("Provider's recent claim volume vs its own baseline", "PROVIDER_ID, CLAIM_DATE",
-                              "provider's earlier claims in the 30 days up to this claim / its average 30-day count over days 31-365 before",
+                              "provider's other claims dated in the 30 days up to this claim / its average 30-day count over days 31-365 before",
                               "Sudden increase in a provider's billing",
                               f">= {C.PROVIDER_SURGE_MULTIPLIER:g}x and >= {C.PROVIDER_SURGE_MIN_COUNT} claims "
                               f"(needs >= {C.MIN_PROVIDER_BASELINE_CLAIMS} baseline claims)"),
@@ -80,10 +88,14 @@ PROVIDER_SPEC = {
 }
 
 
-def _ind(code, level, name, value, reference, threshold, status, triggered, reason) -> dict:
+def _ids(df: pd.DataFrame) -> list[int]:
+    return sorted(int(i) for i in df["CLAIM_ID"])
+
+
+def _ind(code, level, name, value, reference, threshold, status, triggered, reason, comparison_ids=()) -> dict:
     v = None if value is None or (isinstance(value, float) and np.isnan(value)) else (round(float(value), 4) if not isinstance(value, (int, np.integer)) else int(value))
     return {"code": code, "level": level, "name": name, "value": v, "reference": reference, "threshold": threshold,
-            "status": status, "triggered": triggered, "reason": reason}
+            "status": status, "triggered": triggered, "reason": reason, "comparison_claim_ids": list(comparison_ids)}
 
 
 def _days(a: pd.Timestamp, b: pd.Timestamp) -> int:
@@ -97,20 +109,21 @@ def assess_claim(data: AppData, claim_id: int) -> dict:
     if row.empty:
         raise KeyError(f"Unknown claim {claim_id}")
     c = row.iloc[0]
-    hist = claims.loc[claims["CLAIM_ID"] < c["CLAIM_ID"]]                    # inserted before this claim
     d, amt, dx = c["CLAIM_DATE"], float(c["CLAIM_AMOUNT"]), c["DX"]
+    others = claims.loc[claims["CLAIM_ID"] != c["CLAIM_ID"]]                 # knowledge: snapshot minus the claim itself
+    prior = others.loc[others["CLAIM_DATE"] <= d]                            # service-date history (order-independent)
     pol = data.policies.loc[c["POLICY_ID"]]
     S = CLAIM_SPEC
     out = []
 
-    # 1. coverage share
+    # 1. coverage share (no comparison claims)
     cov = float(pol["COVERAGE_AMOUNT"])
     share = amt / cov if cov > 0 else np.nan
     out.append(_ind("coverage_share", "claim", S["coverage_share"][0], share, f"policy coverage {cov:,.2f}", S["coverage_share"][4],
                     "ok" if cov > 0 else "not_applicable", bool(share >= C.COVERAGE_SHARE_THRESHOLD) if cov > 0 else None,
                     f"claim amount is {share:.1%} of the policy's coverage" if cov > 0 else "policy has no coverage amount"))
 
-    # 2. outside policy period
+    # 2. outside policy period (no comparison claims)
     before, after = _days(pol["START_DATE"], d), _days(d, pol["END_DATE"])
     outside = max(before, after, 0)
     why = (f"claim date is {before} day(s) before the policy start ({pol['START_DATE'].date()})" if before > 0 else
@@ -119,77 +132,87 @@ def assess_claim(data: AppData, claim_id: int) -> dict:
     out.append(_ind("outside_policy_period", "claim", S["outside_policy_period"][0], outside,
                     f"policy {pol['START_DATE'].date()} to {pol['END_DATE'].date()}", S["outside_policy_period"][4], "ok", outside > 0, why))
 
-    # 3. amount vs diagnosis median (earlier claims only)
-    same_dx = hist.loc[hist["DX"] == dx, "CLAIM_AMOUNT"]
+    # 3. amount vs diagnosis median (earlier-dated snapshot claims)
+    same_dx = prior.loc[prior["DX"] == dx]
     if len(same_dx) >= C.MIN_DIAGNOSIS_HISTORY:
-        med = float(same_dx.median())
+        med = float(same_dx["CLAIM_AMOUNT"].median())
         ratio = amt / med if med > 0 else np.nan
         out.append(_ind("amount_vs_diagnosis_median", "claim", S["amount_vs_diagnosis_median"][0], ratio,
-                        f"median {med:,.2f} over {len(same_dx)} earlier claims with this diagnosis", S["amount_vs_diagnosis_median"][4],
-                        "ok", bool(ratio >= C.DIAGNOSIS_RATIO_THRESHOLD), f"amount is {ratio:.2f}x the earlier median for this diagnosis"))
+                        f"median {med:,.2f} over {len(same_dx)} earlier-dated claims with this diagnosis", S["amount_vs_diagnosis_median"][4],
+                        "ok", bool(ratio >= C.DIAGNOSIS_RATIO_THRESHOLD), f"amount is {ratio:.2f}x the median of earlier-dated claims for this diagnosis",
+                        _ids(same_dx)))
     else:
         out.append(_ind("amount_vs_diagnosis_median", "claim", S["amount_vs_diagnosis_median"][0], None,
-                        f"{len(same_dx)} earlier claim(s) with this diagnosis", S["amount_vs_diagnosis_median"][4], "insufficient_history", None,
-                        f"only {len(same_dx)} earlier claim(s) with this diagnosis; at least {C.MIN_DIAGNOSIS_HISTORY} are needed"))
+                        f"{len(same_dx)} earlier-dated claim(s) with this diagnosis", S["amount_vs_diagnosis_median"][4], "insufficient_history", None,
+                        f"only {len(same_dx)} earlier-dated claim(s) with this diagnosis; at least {C.MIN_DIAGNOSIS_HISTORY} are needed",
+                        _ids(same_dx)))
 
-    # 4. diagnosis new for provider type
+    # 4. diagnosis new for provider type (earlier-dated snapshot claims)
     ptype = c["PROVIDER_TYPE"]
-    same_type = hist.loc[hist["PROVIDER_TYPE"] == ptype]
+    same_type = prior.loc[prior["PROVIDER_TYPE"] == ptype]
     if len(same_type) >= C.MIN_PROVIDER_TYPE_HISTORY:
-        n = int((same_type["DX"] == dx).sum())
+        matches = same_type.loc[same_type["DX"] == dx]
+        n = len(matches)
         out.append(_ind("diagnosis_new_for_provider_type", "claim", S["diagnosis_new_for_provider_type"][0], n,
-                        f"{len(same_type)} earlier claims from '{ptype}' providers", S["diagnosis_new_for_provider_type"][4], "ok", n == 0,
-                        f"this diagnosis appears in {n} earlier claim(s) from '{ptype}' providers"))
+                        f"{len(same_type)} earlier-dated claims from '{ptype}' providers", S["diagnosis_new_for_provider_type"][4], "ok", n == 0,
+                        f"this diagnosis appears in {n} earlier-dated claim(s) from '{ptype}' providers", _ids(same_type)))
     else:
         out.append(_ind("diagnosis_new_for_provider_type", "claim", S["diagnosis_new_for_provider_type"][0], None,
-                        f"{len(same_type)} earlier claim(s) from '{ptype}' providers", S["diagnosis_new_for_provider_type"][4],
+                        f"{len(same_type)} earlier-dated claim(s) from '{ptype}' providers", S["diagnosis_new_for_provider_type"][4],
                         "insufficient_history", None,
-                        f"only {len(same_type)} earlier claim(s) from '{ptype}' providers; at least {C.MIN_PROVIDER_TYPE_HISTORY} are needed"))
+                        f"only {len(same_type)} earlier-dated claim(s) from '{ptype}' providers; at least {C.MIN_PROVIDER_TYPE_HISTORY} are needed",
+                        _ids(same_type)))
 
-    # 5./6. patient history (any policy of the same patient)
-    pat = hist.loc[hist["PATIENT_ID"] == c["PATIENT_ID"]]
-    w30 = pat.loc[(pat["CLAIM_DATE"] <= d) & (pat["CLAIM_DATE"] >= d - pd.Timedelta(days=30))]
+    # 5./6. patient history (any policy of the same patient), earlier-dated
+    pat_prior = prior.loc[prior["PATIENT_ID"] == c["PATIENT_ID"]]
+    w30 = pat_prior.loc[pat_prior["CLAIM_DATE"] >= d - pd.Timedelta(days=30)]
     out.append(_ind("patient_claims_prior_30d", "claim", S["patient_claims_prior_30d"][0], len(w30),
-                    "earlier claims of this patient dated in the 30 days up to this claim", S["patient_claims_prior_30d"][4], "ok",
-                    len(w30) >= C.PATIENT_30D_THRESHOLD, f"{len(w30)} earlier claim(s) for this patient in the 30 days up to this claim"))
-    prev = pat.loc[pat["CLAIM_DATE"] <= d, "CLAIM_DATE"]
-    if len(prev):
-        gap = _days(d, prev.max())
+                    "other claims of this patient dated in the 30 days up to this claim", S["patient_claims_prior_30d"][4], "ok",
+                    len(w30) >= C.PATIENT_30D_THRESHOLD, f"{len(w30)} other claim(s) for this patient dated in the 30 days up to this claim",
+                    _ids(w30)))
+    if len(pat_prior):
+        last = pat_prior["CLAIM_DATE"].max()
+        gap = _days(d, last)
         out.append(_ind("days_since_patient_previous_claim", "claim", S["days_since_patient_previous_claim"][0], gap,
-                        f"previous claim dated {prev.max().date()}", S["days_since_patient_previous_claim"][4], "ok",
-                        gap <= C.REPEAT_VISIT_DAYS_THRESHOLD, f"{gap} day(s) since this patient's previous claim"))
+                        f"previous claim dated {last.date()}", S["days_since_patient_previous_claim"][4], "ok",
+                        gap <= C.REPEAT_VISIT_DAYS_THRESHOLD, f"{gap} day(s) since this patient's previous claim",
+                        _ids(pat_prior.loc[pat_prior["CLAIM_DATE"] == last])))
     else:
         out.append(_ind("days_since_patient_previous_claim", "claim", S["days_since_patient_previous_claim"][0], None,
-                        "no earlier claim dated on or before this claim", S["days_since_patient_previous_claim"][4], "not_applicable", None,
-                        "this patient has no earlier claim dated on or before this one"))
+                        "no other claim dated on or before this claim", S["days_since_patient_previous_claim"][4], "not_applicable", None,
+                        "this patient has no other claim dated on or before this one"))
 
-    # 7. near duplicates
-    dup = pat.loc[(pat["PROVIDER_ID"] == c["PROVIDER_ID"]) & (pat["DX"] == dx)
-                  & ((pat["CLAIM_DATE"] - d).abs() <= pd.Timedelta(days=C.DUPLICATE_WINDOW_DAYS))
-                  & ((pat["CLAIM_AMOUNT"] - amt).abs() <= C.DUPLICATE_AMOUNT_TOLERANCE * amt)]
+    # 7. near duplicates: snapshot claims within +/- window (either side of the claim date)
+    pat_all = others.loc[others["PATIENT_ID"] == c["PATIENT_ID"]]
+    dup = pat_all.loc[(pat_all["PROVIDER_ID"] == c["PROVIDER_ID"]) & (pat_all["DX"] == dx)
+                      & ((pat_all["CLAIM_DATE"] - d).abs() <= pd.Timedelta(days=C.DUPLICATE_WINDOW_DAYS))
+                      & ((pat_all["CLAIM_AMOUNT"] - amt).abs() <= C.DUPLICATE_AMOUNT_TOLERANCE * amt)]
     out.append(_ind("near_duplicate_claims", "claim", S["near_duplicate_claims"][0], len(dup),
-                    ("earlier claim IDs " + ", ".join(str(i) for i in dup["CLAIM_ID"])) if len(dup) else "no matching earlier claims",
+                    ("matching claim IDs " + ", ".join(str(i) for i in _ids(dup))) if len(dup) else "no matching claims",
                     S["near_duplicate_claims"][4], "ok", len(dup) >= 1,
-                    f"{len(dup)} earlier claim(s) look like the same bill (same patient, provider, diagnosis, similar amount and date)"))
+                    f"{len(dup)} other claim(s) look like the same bill (same patient, provider, diagnosis, similar amount, "
+                    f"within {C.DUPLICATE_WINDOW_DAYS} days either side)", _ids(dup)))
 
-    # 8. provider volume surge vs its own baseline
-    ph = hist.loc[hist["PROVIDER_ID"] == c["PROVIDER_ID"]]
-    recent = int(((ph["CLAIM_DATE"] <= d) & (ph["CLAIM_DATE"] >= d - pd.Timedelta(days=30))).sum())
-    base_n = int(((ph["CLAIM_DATE"] < d - pd.Timedelta(days=30)) & (ph["CLAIM_DATE"] >= d - pd.Timedelta(days=365))).sum())
-    if base_n >= C.MIN_PROVIDER_BASELINE_CLAIMS:
-        base_rate = base_n / (335 / 30)
-        ratio = recent / base_rate
+    # 8. provider volume surge vs its own baseline (earlier-dated)
+    ph = prior.loc[prior["PROVIDER_ID"] == c["PROVIDER_ID"]]
+    recent = ph.loc[ph["CLAIM_DATE"] >= d - pd.Timedelta(days=30)]
+    base = ph.loc[(ph["CLAIM_DATE"] < d - pd.Timedelta(days=30)) & (ph["CLAIM_DATE"] >= d - pd.Timedelta(days=365))]
+    used = pd.concat([recent, base])
+    if len(base) >= C.MIN_PROVIDER_BASELINE_CLAIMS:
+        base_rate = len(base) / (335 / 30)
+        ratio = len(recent) / base_rate
         out.append(_ind("provider_volume_surge", "claim", S["provider_volume_surge"][0], ratio,
-                        f"{recent} earlier claim(s) in the last 30 days vs a baseline of {base_rate:.2f} per 30 days", S["provider_volume_surge"][4],
-                        "ok", bool(ratio >= C.PROVIDER_SURGE_MULTIPLIER and recent >= C.PROVIDER_SURGE_MIN_COUNT),
-                        f"provider's recent volume is {ratio:.2f}x its own earlier rate"))
+                        f"{len(recent)} other claim(s) dated in the last 30 days vs a baseline of {base_rate:.2f} per 30 days", S["provider_volume_surge"][4],
+                        "ok", bool(ratio >= C.PROVIDER_SURGE_MULTIPLIER and len(recent) >= C.PROVIDER_SURGE_MIN_COUNT),
+                        f"provider's recent volume is {ratio:.2f}x its own earlier rate", _ids(used)))
     else:
         out.append(_ind("provider_volume_surge", "claim", S["provider_volume_surge"][0], None,
-                        f"{base_n} baseline claim(s)", S["provider_volume_surge"][4], "insufficient_history", None,
-                        f"provider has {base_n} earlier claim(s) in its baseline window; at least {C.MIN_PROVIDER_BASELINE_CLAIMS} are needed"))
+                        f"{len(base)} baseline claim(s)", S["provider_volume_surge"][4], "insufficient_history", None,
+                        f"provider has {len(base)} claim(s) dated in its baseline window; at least {C.MIN_PROVIDER_BASELINE_CLAIMS} are needed",
+                        _ids(used)))
 
     # Rule hits (existing SQL engine output for this claim) and review priority
-    rh = data.rule_hits.loc[data.rule_hits["CLAIM_ID"] == c["CLAIM_ID"]]
+    rh = data.rule_hits.loc[data.rule_hits["CLAIM_ID"] == c["CLAIM_ID"]].sort_values("RULE_ID")
     rule_hits = [{"rule_id": int(r.RULE_ID), "rule_name": str(r.RULE_NAME)} for r in rh.itertuples()]
     triggered = [i for i in out if i["triggered"] is True]
     insufficient = [i for i in out if i["status"] == "insufficient_history"]
@@ -197,13 +220,17 @@ def assess_claim(data: AppData, claim_id: int) -> dict:
     if insufficient:
         reasons.append(f"{len(insufficient)} of {len(out)} indicators could not be evaluated (insufficient history)")
     computable = [i for i in out if i["status"] == "ok"]
-    return {
+    result = {
         "claim_id": int(c["CLAIM_ID"]), "indicator_set": C.INDICATOR_SET_KEY, "indicator_set_version": C.INDICATOR_SET_VERSION,
         "assessment_status": "completed" if computable else "insufficient_data",
-        "history_cutoff_claim_id": int(c["CLAIM_ID"]), "history_claims_used": int(len(hist)),
+        "snapshot_claim_count": int(len(claims)),               # claims visible in the snapshot (incl. this one)
+        "prior_history_claim_count": int(len(prior)),           # other snapshot claims dated on or before this one
         "rule_hits": rule_hits, "indicators": out, "triggered_count": len(triggered),
         "review_priority": priority, "priority_reasons": reasons, "disclaimer": DISCLAIMER,
+        "digest_scope": list(DIGEST_FIELDS),
     }
+    result["indicators_digest"] = assessment_digest(result)
+    return result
 
 
 def review_priority(rule_hits: list, triggered: list) -> tuple[str, list]:
@@ -217,7 +244,7 @@ def review_priority(rule_hits: list, triggered: list) -> tuple[str, list]:
     return "Routine", reasons or ["no SQL rule hits and no indicator above its threshold"]
 
 
-# ── Provider level ────────────────────────────────────────────────
+# ── Provider level (date-based cutoff; unchanged logic) ───────────
 def _provider_values(cl: pd.DataFrame, flagged_ids: set, all_cl: pd.DataFrame) -> dict:
     n = len(cl)
     pats = cl["PATIENT_ID"].nunique()

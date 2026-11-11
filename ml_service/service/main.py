@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Callable, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
@@ -36,7 +36,7 @@ from .research import SCOPE, ResearchStore
 from .schemas import ClaimAssessment, Health, ProviderProfile, ResearchEnvelope, Status
 
 SERVICE = "fraud-ml-service"
-VERSION = "0.4.0"
+VERSION = "0.4.1"   # 0.4.1: indicator set v2 (service-date history, comparison IDs, digest)
 log = logging.getLogger(SERVICE)
 
 
@@ -80,9 +80,10 @@ def create_app(settings: Settings, loader: Optional[Callable[[], AppData]] = Non
     # ── Track 2: live application indicators (read-only) ─────────
     @app.get("/v1/claims/{claim_id}/indicators", response_model=ClaimAssessment, dependencies=[Depends(require_key)], tags=["application"])
     def claim_indicators(claim_id: int = Path(gt=0)):
+        assessed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")   # snapshot time (provenance)
         data = load()
         try:
-            return assess_claim(data, claim_id)
+            return {**assess_claim(data, claim_id), "assessed_at": assessed_at}
         except KeyError:
             raise HTTPException(status_code=404, detail=f"claim {claim_id} not found")
 

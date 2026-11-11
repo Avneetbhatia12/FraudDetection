@@ -28,7 +28,7 @@ USE fraud_detection;
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS MODEL_REGISTRY (
     MODEL_ID             INT AUTO_INCREMENT PRIMARY KEY,
-    MODEL_KEY            VARCHAR(64)  NOT NULL UNIQUE,   -- stable identifier, e.g. 'app-indicators-v1', 'kaggle-xgb-run-20261111-102008'
+    MODEL_KEY            VARCHAR(64)  NOT NULL UNIQUE,   -- stable identifier, e.g. 'app-indicators-v2', 'kaggle-xgb-run-20261111-102008'
     MODEL_KIND           ENUM('research_benchmark',      -- trained on public data; insights only
                               'app_indicator_set',       -- transparent statistical indicators (not ML)
                               'app_anomaly_model',       -- future: unsupervised model on application data
@@ -63,9 +63,13 @@ CREATE TABLE IF NOT EXISTS CLAIM_RISK_ASSESSMENT (
                                 'insufficient_data',       -- no indicator could be computed
                                 'failed')                  -- ML service error / timeout; ERROR_MESSAGE set
                            NOT NULL,
-    HISTORY_CUTOFF_CLAIM_ID INT         NULL,              -- only claims with CLAIM_ID < this value were used as history
+    INDICATOR_SET_VERSION  VARCHAR(32)  NULL,              -- e.g. '2.0.0' (also via MODEL_ID); part of the digest
+    SNAPSHOT_CLAIM_COUNT   INT          NULL,              -- claims visible in the read-only snapshot used (provenance; NOT in the digest)
+    INDICATORS_DIGEST      CHAR(64)     NULL,              -- SHA-256 of the deterministic assessment content (see ml_service/app_risk/snapshots.py).
+                                                           -- A new row is appended only when this differs from the claim's latest digest.
     RULE_HITS              JSON         NULL,              -- snapshot of CLAIM_RULE at assessment time: [{rule_id, rule_name}]
-    INDICATORS             JSON         NULL,              -- [{code, level, value, reference, threshold, status, triggered, reason}]
+    INDICATORS             JSON         NULL,              -- [{code, level, value, reference, threshold, status, triggered, reason,
+                                                           --   comparison_claim_ids}]: the IDs are the audit trail of what was compared
     TRIGGERED_COUNT        TINYINT      NULL,              -- number of indicators with triggered = true
     REVIEW_PRIORITY        ENUM('Routine','Elevated','High') NULL,  -- documented ordering aid; NOT a score, NOT a decision
     PRIORITY_REASONS       JSON         NULL,              -- human-readable reasons behind REVIEW_PRIORITY
@@ -76,6 +80,9 @@ CREATE TABLE IF NOT EXISTS CLAIM_RISK_ASSESSMENT (
     CONSTRAINT fk_cra_claim FOREIGN KEY (CLAIM_ID) REFERENCES CLAIM(CLAIM_ID),
     CONSTRAINT fk_cra_model FOREIGN KEY (MODEL_ID) REFERENCES MODEL_REGISTRY(MODEL_ID),
     CONSTRAINT chk_cra_failed_has_error CHECK (ASSESSMENT_STATUS <> 'failed' OR ERROR_MESSAGE IS NOT NULL),
+    CONSTRAINT chk_cra_snapshot_complete CHECK (ASSESSMENT_STATUS = 'failed' OR
+        (INDICATORS_DIGEST IS NOT NULL AND SNAPSHOT_CLAIM_COUNT IS NOT NULL AND INDICATOR_SET_VERSION IS NOT NULL)),
+    CONSTRAINT chk_cra_digest_format CHECK (INDICATORS_DIGEST IS NULL OR INDICATORS_DIGEST REGEXP '^[0-9a-f]{64}$'),
     INDEX idx_cra_claim_time (CLAIM_ID, ASSESSED_AT),
     INDEX idx_cra_priority (REVIEW_PRIORITY, ASSESSED_AT)
 );
@@ -158,11 +165,36 @@ SELECT * FROM (
     FROM CLAIM_RISK_ASSESSMENT a) x
 WHERE RN = 1;
 
+-- Latest NON-FAILED snapshot per claim. This (not CLAIM_LATEST_ASSESSMENT, which may be a failed attempt) is the
+-- baseline for the append-only rule: a new snapshot is appended only if its INDICATORS_DIGEST differs from this row's.
+CREATE OR REPLACE VIEW CLAIM_LATEST_VALID_ASSESSMENT AS
+SELECT * FROM (
+    SELECT a.*, ROW_NUMBER() OVER (PARTITION BY a.CLAIM_ID ORDER BY a.ASSESSED_AT DESC, a.ASSESSMENT_ID DESC) AS RN
+    FROM CLAIM_RISK_ASSESSMENT a
+    WHERE a.ASSESSMENT_STATUS <> 'failed') x
+WHERE RN = 1;
+
 CREATE OR REPLACE VIEW PROVIDER_LATEST_PROFILE AS
 SELECT * FROM (
     SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p.PROVIDER_ID ORDER BY p.COMPUTED_AT DESC, p.PROFILE_ID DESC) AS RN
     FROM PROVIDER_RISK_PROFILE p) x
 WHERE RN = 1;
+
+-- Training-data safeguard (Track 3): for every outcome, the assessment snapshot that EXISTED when the outcome was
+-- recorded: the linked ASSESSMENT_ID if it was assessed at or before DECIDED_AT, otherwise the latest non-failed
+-- snapshot with ASSESSED_AT <= DECIDED_AT. Future supervised training must take its features from this snapshot and
+-- must never recompute them with information entered later. NULL = no valid snapshot (exclude from training).
+CREATE OR REPLACE VIEW OUTCOME_TRAINING_SNAPSHOT AS
+SELECT o.OUTCOME_ID, o.CLAIM_ID, o.OUTCOME, o.OUTCOME_BASIS, o.DECIDED_AT,
+       COALESCE(
+         (SELECT a.ASSESSMENT_ID FROM CLAIM_RISK_ASSESSMENT a
+           WHERE a.ASSESSMENT_ID = o.ASSESSMENT_ID AND a.CLAIM_ID = o.CLAIM_ID
+             AND a.ASSESSED_AT <= o.DECIDED_AT AND a.ASSESSMENT_STATUS <> 'failed'),
+         (SELECT a.ASSESSMENT_ID FROM CLAIM_RISK_ASSESSMENT a
+           WHERE a.CLAIM_ID = o.CLAIM_ID AND a.ASSESSED_AT <= o.DECIDED_AT AND a.ASSESSMENT_STATUS <> 'failed'
+           ORDER BY a.ASSESSED_AT DESC, a.ASSESSMENT_ID DESC LIMIT 1)
+       ) AS TRAINING_ASSESSMENT_ID
+FROM CLAIM_INVESTIGATION_OUTCOME o;
 
 -- Latest outcome per claim; IS_LABEL_CANDIDATE = 1 only for final outcomes (future supervised training, Track 3)
 CREATE OR REPLACE VIEW CLAIM_LATEST_OUTCOME AS

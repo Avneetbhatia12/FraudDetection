@@ -17,6 +17,8 @@ class Indicator(BaseModel):
     status: Literal["ok", "insufficient_history", "not_applicable"]
     triggered: Optional[bool] = Field(None, description="null when the indicator cannot be judged")
     reason: str
+    comparison_claim_ids: list[int] = Field(default_factory=list,
+                                            description="Snapshot claims this indicator compared against (audit trail)")
 
 
 class RuleHit(BaseModel):
@@ -30,14 +32,18 @@ class ClaimAssessment(BaseModel):
     indicator_set: str
     indicator_set_version: str
     assessment_status: Literal["completed", "insufficient_data"]
-    history_cutoff_claim_id: int = Field(description="Only claims with a smaller CLAIM_ID were used as history")
-    history_claims_used: int
+    snapshot_claim_count: int = Field(description="Claims visible in the read-only database snapshot used (incl. this claim)")
+    prior_history_claim_count: int = Field(description="Other snapshot claims dated on or before this claim (service-date history)")
     rule_hits: list[RuleHit] = Field(description="Existing SQL rule engine results for this claim (unchanged)")
     indicators: list[Indicator]
     triggered_count: int
     review_priority: Literal["Routine", "Elevated", "High"] = Field(description="Queue ordering aid, not a score or a decision")
     priority_reasons: list[str]
     disclaimer: str
+    indicators_digest: str = Field(pattern=r"^[0-9a-f]{64}$",
+                                   description="SHA-256 of the deterministic assessment content (fields in digest_scope)")
+    digest_scope: list[str]
+    assessed_at: str = Field(description="UTC time the snapshot was taken (provenance; not part of the digest)")
 
 
 class ProviderProfile(BaseModel):
