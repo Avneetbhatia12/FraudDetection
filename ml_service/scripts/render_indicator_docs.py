@@ -22,12 +22,44 @@ def main() -> None:
     L += ["", f"Never loaded or used: {', '.join(f'`{c}`' for c in sorted(C.FORBIDDEN_COLUMNS))} "
           "(post-review decisions would leak the outcome; patient personal or sensitive fields are not needed). "
           "The loader rejects data containing them, and the MySQL session is read-only.", "",
-          "## History cutoff (no look-ahead)", "",
-          "- **Claim level:** history = claims with a smaller `CLAIM_ID` (inserted earlier; `CLAIM_ID` is AUTO_INCREMENT). Date windows use "
-          "`CLAIM_DATE` within that history. Later claims, including back-dated ones, never change an earlier claim's result, "
-          "so re-assessing a claim later gives the same result.",
-          "- **Provider level:** claims with `CLAIM_DATE` ≤ the as-of date, compared with peers at the same cutoff.",
-          "- **Dates** are calendar dates from MySQL (`DATE`), not converted through any timezone (tested under IST).", "",
+          "## Two timelines (claim level)", "",
+          "1. **Knowledge:** the claims visible in one consistent, read-only database snapshot taken at assessment time "
+          "(`START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY`). Nothing outside the snapshot is used.",
+          "2. **Service date:** within the snapshot, comparisons use `CLAIM_DATE` only:",
+          "   - prior-history indicators use snapshot claims dated **on or before** the assessed claim's date, excluding the claim itself;",
+          f"   - duplicate detection uses snapshot claims within **±{C.DUPLICATE_WINDOW_DAYS} calendar days**.",
+          "",
+          "**`CLAIM_ID` never determines order or history.** It only identifies claims and excludes the assessed claim. Results do not "
+          "depend on the order in which claims were entered (tested over all insertion orders).", "",
+          "| Property | Behaviour |", "|---|---|",
+          f"| Claims dated more than {C.DUPLICATE_WINDOW_DAYS} days after the assessed claim | never change its result |",
+          "| A back-dated claim entered later | updates the assessments of the later-dated claims it precedes (new knowledge); earlier snapshots are kept |",
+          "| Same snapshot | same result, same digest |", "",
+          "Indicator set 1.0.0 used \"`CLAIM_ID` < assessed claim\" as history and missed claims entered out of date order. It was never deployed; 2.0.0 replaces it.", "",
+          "## Snapshots, digest and audit trail", "",
+          "Each claim assessment carries `snapshot_claim_count` (claims visible in the snapshot), `prior_history_claim_count`, "
+          "`comparison_claim_ids` on every indicator (exactly which claims were compared), `indicator_set_version`, `snapshot_taken_at` "
+          "(MySQL UTC clock at snapshot time) and `indicators_digest`: SHA-256 of the canonical JSON of the deterministic content "
+          "(claim, indicator set and version, status, rule hits, all indicator results including comparison IDs, triggered count, "
+          "priority and reasons).", "",
+          "`snapshot_taken_at`, the snapshot counts and the disclaimer are provenance, **not** part of the digest. A claim added anywhere "
+          "else would otherwise create a new snapshot for every claim, while any change that matters to this claim already "
+          "changes its indicator values or comparison IDs.", "",
+          "**Append-only:** a new snapshot is stored only when its digest differs from the claim's latest **non-failed** snapshot "
+          "(`CLAIM_LATEST_VALID_ASSESSMENT`). Snapshots are never updated or deleted (database triggers). The stored `ASSESSED_AT` "
+          "is set by MySQL (`UTC_TIMESTAMP()`) on insert, as is the outcome's `DECIDED_AT`: one clock for both.", "",
+          "## Training-data rule (Track 3)", "",
+          "**Strict linking only.** An outcome is usable for supervised training only with the **exact snapshot linked to it** "
+          "(`ASSESSMENT_ID`, the one the investigator was shown), and only if that snapshot belongs to the same claim, is not a failed "
+          "attempt, and was assessed **at or before** the decision. If the link is absent or invalid, the outcome is **excluded**, with "
+          "a reason (`no_linked_snapshot`, `linked_snapshot_missing`, `linked_snapshot_other_claim`, `linked_snapshot_failed`, "
+          "`linked_snapshot_after_decision`). **No other snapshot, older or newer, is ever substituted.** Invalid links are rejected "
+          "at insert (trigger `trg_cio_valid_snapshot`); the view `OUTCOME_TRAINING_SNAPSHOT` and "
+          "`app_risk.snapshots.select_training_snapshot` apply the same rule. Historical training features must **never** be "
+          "recomputed with information entered later.", "",
+          "## Provider level", "",
+          "Claims with `CLAIM_DATE` ≤ the as-of date, compared with peers at the same cutoff (date-based; independent of `CLAIM_ID`).", "",
+          "Dates are calendar dates from MySQL (`DATE`), not converted through any timezone (tested under IST).", "",
           "## Claim-level indicators", "",
           "| Code | Name | Inputs | Calculation | Why | Triggered when |", "|---|---|---|---|---|---|"]
     L += [f"| `{k}` | {v[0]} | {v[1]} | {v[2]} | {v[3]} | {v[4]} |" for k, v in CLAIM_SPEC.items()]

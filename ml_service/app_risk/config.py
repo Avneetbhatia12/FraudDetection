@@ -6,8 +6,10 @@ NOT machine-learning predictions. Every threshold below is a configured design c
 not learned from labels; the application has none). Changing any value requires a new INDICATOR_SET_VERSION.
 """
 
-INDICATOR_SET_KEY = "app-indicators-v1"
-INDICATOR_SET_VERSION = "1.0.0"
+INDICATOR_SET_KEY = "app-indicators-v2"
+# 2.0.0: history is defined by service date (CLAIM_DATE) within the assessment snapshot, never by CLAIM_ID order
+#        (1.0.0 used "CLAIM_ID < assessed claim" and missed claims entered out of date order; never deployed).
+INDICATOR_SET_VERSION = "2.0.0"
 
 # Columns that must NEVER be loaded or used: post-review decisions (label leakage) and sensitive attributes.
 FORBIDDEN_COLUMNS = {"STATUS", "APPROVED_AMOUNT", "GENDER", "DOB", "FIRST_NAME", "LAST_NAME", "EMAIL", "ADDRESS"}

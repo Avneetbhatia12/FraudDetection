@@ -3,7 +3,7 @@
   "info": {
     "title": "Fraud ML service (internal)",
     "description": "Application-native risk indicators (not ML predictions) and research-only model insights.",
-    "version": "0.4.0"
+    "version": "0.4.2"
   },
   "paths": {
     "/health": {
@@ -454,14 +454,15 @@
             ],
             "title": "Assessment Status"
           },
-          "history_cutoff_claim_id": {
+          "snapshot_claim_count": {
             "type": "integer",
-            "title": "History Cutoff Claim Id",
-            "description": "Only claims with a smaller CLAIM_ID were used as history"
+            "title": "Snapshot Claim Count",
+            "description": "Claims visible in the read-only database snapshot used (incl. this claim)"
           },
-          "history_claims_used": {
+          "prior_history_claim_count": {
             "type": "integer",
-            "title": "History Claims Used"
+            "title": "Prior History Claim Count",
+            "description": "Other snapshot claims dated on or before this claim (service-date history)"
           },
           "rule_hits": {
             "items": {
@@ -502,6 +503,31 @@
           "disclaimer": {
             "type": "string",
             "title": "Disclaimer"
+          },
+          "indicators_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Indicators Digest",
+            "description": "SHA-256 of the deterministic assessment content (fields in digest_scope)"
+          },
+          "digest_scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Digest Scope"
+          },
+          "snapshot_taken_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Taken At",
+            "description": "MySQL server time (UTC, ISO 8601 with Z) when the read-only snapshot was taken. Provenance only; not part of the digest and NOT the stored ASSESSED_AT, which MySQL sets when the backend stores the assessment (the backend must return that stored value, never send its own)."
           }
         },
         "type": "object",
@@ -510,14 +536,16 @@
           "indicator_set",
           "indicator_set_version",
           "assessment_status",
-          "history_cutoff_claim_id",
-          "history_claims_used",
+          "snapshot_claim_count",
+          "prior_history_claim_count",
           "rule_hits",
           "indicators",
           "triggered_count",
           "review_priority",
           "priority_reasons",
-          "disclaimer"
+          "disclaimer",
+          "indicators_digest",
+          "digest_scope"
         ],
         "title": "ClaimAssessment"
       },
@@ -632,6 +660,14 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "comparison_claim_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Comparison Claim Ids",
+            "description": "Snapshot claims this indicator compared against (audit trail)"
           }
         },
         "type": "object",
