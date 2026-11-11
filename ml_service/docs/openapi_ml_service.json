@@ -1,0 +1,879 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fraud ML service (internal)",
+    "description": "Application-native risk indicators (not ML predictions) and research-only model insights.",
+    "version": "0.4.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Status",
+        "operationId": "status_v1_status_get",
+        "parameters": [
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/claims/{claim_id}/indicators": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Claim Indicators",
+        "operationId": "claim_indicators_v1_claims__claim_id__indicators_get",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Claim Id"
+            }
+          },
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimAssessment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/providers/{provider_id}/indicators": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Provider Indicators",
+        "operationId": "provider_indicators_v1_providers__provider_id__indicators_get",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/research/models": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Models",
+        "operationId": "research_models_v1_research_models_get",
+        "parameters": [
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/research/shap/global": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Shap Global",
+        "operationId": "research_shap_global_v1_research_shap_global_get",
+        "parameters": [
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/research/providers/{kaggle_provider_id}/explanation": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Provider",
+        "operationId": "research_provider_v1_research_providers__kaggle_provider_id__explanation_get",
+        "parameters": [
+          {
+            "name": "kaggle_provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kaggle Provider Id"
+            }
+          },
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/research/figures/{name}": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Research Figure",
+        "operationId": "research_figure_v1_research_figures__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "x-ml-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ml-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClaimAssessment": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "claim_level_indicators",
+            "title": "Kind",
+            "default": "claim_level_indicators"
+          },
+          "claim_id": {
+            "type": "integer",
+            "title": "Claim Id"
+          },
+          "indicator_set": {
+            "type": "string",
+            "title": "Indicator Set"
+          },
+          "indicator_set_version": {
+            "type": "string",
+            "title": "Indicator Set Version"
+          },
+          "assessment_status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "insufficient_data"
+            ],
+            "title": "Assessment Status"
+          },
+          "history_cutoff_claim_id": {
+            "type": "integer",
+            "title": "History Cutoff Claim Id",
+            "description": "Only claims with a smaller CLAIM_ID were used as history"
+          },
+          "history_claims_used": {
+            "type": "integer",
+            "title": "History Claims Used"
+          },
+          "rule_hits": {
+            "items": {
+              "$ref": "#/components/schemas/RuleHit"
+            },
+            "type": "array",
+            "title": "Rule Hits",
+            "description": "Existing SQL rule engine results for this claim (unchanged)"
+          },
+          "indicators": {
+            "items": {
+              "$ref": "#/components/schemas/Indicator"
+            },
+            "type": "array",
+            "title": "Indicators"
+          },
+          "triggered_count": {
+            "type": "integer",
+            "title": "Triggered Count"
+          },
+          "review_priority": {
+            "type": "string",
+            "enum": [
+              "Routine",
+              "Elevated",
+              "High"
+            ],
+            "title": "Review Priority",
+            "description": "Queue ordering aid, not a score or a decision"
+          },
+          "priority_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Priority Reasons"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "indicator_set",
+          "indicator_set_version",
+          "assessment_status",
+          "history_cutoff_claim_id",
+          "history_claims_used",
+          "rule_hits",
+          "indicators",
+          "triggered_count",
+          "review_priority",
+          "priority_reasons",
+          "disclaimer"
+        ],
+        "title": "ClaimAssessment"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "version"
+        ],
+        "title": "Health"
+      },
+      "Indicator": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "claim",
+              "provider"
+            ],
+            "title": "Level"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Observed value; null when it cannot be computed"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference",
+            "description": "What the value is compared with (earlier claims, policy, peers)"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold",
+            "description": "Configured threshold (design choice, not learned)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "insufficient_history",
+              "not_applicable"
+            ],
+            "title": "Status"
+          },
+          "triggered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triggered",
+            "description": "null when the indicator cannot be judged"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "level",
+          "name",
+          "reference",
+          "status",
+          "reason"
+        ],
+        "title": "Indicator"
+      },
+      "ProviderProfile": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "provider_level_indicators",
+            "title": "Kind",
+            "default": "provider_level_indicators"
+          },
+          "provider_id": {
+            "type": "integer",
+            "title": "Provider Id"
+          },
+          "as_of_date": {
+            "type": "string",
+            "title": "As Of Date"
+          },
+          "indicator_set": {
+            "type": "string",
+            "title": "Indicator Set"
+          },
+          "indicator_set_version": {
+            "type": "string",
+            "title": "Indicator Set Version"
+          },
+          "profile_status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "insufficient_data"
+            ],
+            "title": "Profile Status"
+          },
+          "claim_count": {
+            "type": "integer",
+            "title": "Claim Count"
+          },
+          "comparable_peers": {
+            "type": "integer",
+            "title": "Comparable Peers"
+          },
+          "indicators": {
+            "items": {
+              "$ref": "#/components/schemas/Indicator"
+            },
+            "type": "array",
+            "title": "Indicators"
+          },
+          "triggered_count": {
+            "type": "integer",
+            "title": "Triggered Count"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "as_of_date",
+          "indicator_set",
+          "indicator_set_version",
+          "profile_status",
+          "claim_count",
+          "comparable_peers",
+          "indicators",
+          "triggered_count",
+          "disclaimer"
+        ],
+        "title": "ProviderProfile"
+      },
+      "ResearchEnvelope": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "research_benchmark",
+            "title": "Kind",
+            "default": "research_benchmark"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ResearchScope"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "data"
+        ],
+        "title": "ResearchEnvelope"
+      },
+      "ResearchScope": {
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "applies_to_live_application_data": {
+            "type": "boolean",
+            "const": false,
+            "title": "Applies To Live Application Data",
+            "default": false
+          },
+          "label_note": {
+            "type": "string",
+            "title": "Label Note"
+          },
+          "score_note": {
+            "type": "string",
+            "title": "Score Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset",
+          "label_note",
+          "score_note"
+        ],
+        "title": "ResearchScope"
+      },
+      "RuleHit": {
+        "properties": {
+          "rule_id": {
+            "type": "integer",
+            "title": "Rule Id"
+          },
+          "rule_name": {
+            "type": "string",
+            "title": "Rule Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "rule_name"
+        ],
+        "title": "RuleHit"
+      },
+      "Status": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "indicator_set": {
+            "type": "string",
+            "title": "Indicator Set"
+          },
+          "indicator_set_version": {
+            "type": "string",
+            "title": "Indicator Set Version"
+          },
+          "application_database": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "unreachable"
+            ],
+            "title": "Application Database"
+          },
+          "research_available": {
+            "type": "boolean",
+            "title": "Research Available"
+          },
+          "research_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service",
+          "version",
+          "indicator_set",
+          "indicator_set_version",
+          "application_database",
+          "research_available",
+          "research_run_id"
+        ],
+        "title": "Status"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

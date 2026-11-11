@@ -20,8 +20,8 @@ React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via t
 | 0 | Safety net: DB backup, API regression baseline (`tools/smoke`) | Done |
 | 1 | Data foundation: additive schema, synthetic dataset, role middleware | Done (schema not yet applied) |
 | 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level); ablation | Done. See [reports/model_comparison.md](reports/model_comparison.md) |
-| 3 | SHAP explanations for the provider-level XGBoost model | **Done, awaiting review.** See [reports/shap_explanations.md](reports/shap_explanations.md) |
-| 4 | FastAPI service, hybrid engine, Express integration behind `ML_ENABLED` | |
+| 3 | SHAP explanations for the provider-level XGBoost model | Done. See [reports/shap_explanations.md](reports/shap_explanations.md) |
+| 4 | Three-track integration: research module, app-native indicators, outcome collection | **4.0–4.2 done, awaiting review** (Express, migration and UI pending). See [docs/PHASE4_ARCHITECTURE.md](docs/PHASE4_ARCHITECTURE.md) |
 | 5 | AI dashboard and investigation UI | |
 | 6 | Investigator feedback loop, retraining, deployment | |
 
@@ -84,6 +84,12 @@ py -3.12 -m venv .venv
 # explanations (Phase 3; uses saved artifacts only)
 .venv/Scripts/python.exe training/explain_shap.py                            # reports/shap_explanations.md + reports/shap/*.png
 .venv/Scripts/python.exe scripts/explain_provider.py --provider PRV51001 --top 10 --plots
+# Phase 4: app-native indicators + internal API (read-only DB; needs ML_API_KEY)
+.venv/Scripts/python.exe training/experiment_reduced_features.py               # reports/reduced_feature_experiment.md
+.venv/Scripts/python.exe scripts/precompute_research.py                        # research SHAP for Kaggle providers (artifacts/)
+set ML_API_KEY=<random secret> & set ML_ENV_FILE=..\backend\.env
+.venv/Scripts/python.exe -m uvicorn service.main:app --host 127.0.0.1 --port 8000
+.venv/Scripts/python.exe scripts/render_indicator_docs.py                      # docs/APP_INDICATORS.md
 # docs and tests
 .venv/Scripts/python.exe scripts/render_feature_docs.py
 .venv/Scripts/python.exe -m unittest discover -s tests -v
@@ -110,6 +116,9 @@ Runs are deterministic (seed 42): re-running `train.py` reproduces the same CV r
 | `fraud_ml/explain.py`, `fraud_ml/explain_plots.py` | SHAP provider explanations (global, group, individual, narrative) and plots |
 | `training/explain_shap.py`, `training/shap_report.py` | Phase 3 report and figures (`reports/shap/`) |
 | `scripts/explain_provider.py` | Explain one provider from the command line |
+| `app_risk/` | **Application-native indicators** (Track 2; not ML): read-only loader, claim and provider indicators |
+| `service/` | Internal FastAPI service: live indicators and research endpoints, API-key protected |
+| `docs/PHASE4_ARCHITECTURE.md`, `docs/APP_INDICATORS.md`, `docs/openapi_ml_service.json` | Phase 4 design, indicator catalogue, API contract |
 | `docs/FEATURES.md` | Feature dictionary, generated from the specs |
 | `exploration/` | Dataset exploration report generator |
 | `scripts/` | Data download, documentation rendering, scoring CLI |
