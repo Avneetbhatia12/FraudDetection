@@ -1,10 +1,19 @@
 # Exact versions resolved from requirements.txt on Python 3.12 (pip freeze). For a byte-identical environment:
 #   .venv/Scripts/python.exe -m pip install -r requirements.lock.txt
+annotated-types==0.8.0
+anyio==4.16.0
+certifi==2026.10.23
+click==8.5.1
 cloudpickle==3.1.2
 colorama==0.4.6
 contourpy==1.4.0
 cycler==0.12.1
+fastapi==0.115.5
 fonttools==4.68.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.27.2
+idna==3.20
 joblib==1.4.2
 kiwisolver==1.5.1
 llvmlite==0.50.0
@@ -14,6 +23,9 @@ numpy==2.0.2
 packaging==26.3
 pandas==2.2.3
 pillow==13.0.0
+pydantic==2.14.3
+pydantic_core==2.50.4
+PyMySQL==1.1.1
 pyparsing==3.3.3
 python-dateutil==4.0.0
 pytz==2026.6
@@ -21,7 +33,12 @@ scikit-learn==1.5.2
 scipy==1.14.1
 shap==0.46.0
 slicer==0.0.8
+sniffio==1.3.1
+starlette==0.41.3
 threadpoolctl==3.8.0
 tqdm==4.70.1
+typing-inspection==0.4.5
+typing_extensions==4.16.0
 tzdata==2026.6
+uvicorn==0.32.1
 xgboost==2.1.3

@@ -1,0 +1,265 @@
+{
+  "app_compatible_features": [
+    "log_n_claims",
+    "log_n_patients",
+    "claims_per_patient",
+    "active_months",
+    "claims_per_active_month",
+    "share_same_day_repeat",
+    "median_days_between_patient_claims",
+    "share_patients_3plus_claims",
+    "patient_mean_other_providers"
+  ],
+  "volume_only_features": [
+    "log_n_claims",
+    "log_n_patients",
+    "log_n_attending",
+    "active_months",
+    "claims_per_active_month"
+  ],
+  "results": {
+    "LogisticRegression | app-compatible (9)": {
+      "params": {
+        "C": 0.1
+      },
+      "cv_pr_auc_mean": 0.388,
+      "cv_pr_auc_std": 0.0059,
+      "cv_roc_auc_mean": 0.8208,
+      "cv_roc_auc_std": 0.0086,
+      "pr_auc_folds": [
+        0.3852,
+        0.3873,
+        0.3795,
+        0.3908,
+        0.3974
+      ],
+      "oof_threshold": 0.6706,
+      "oof_precision": 0.3538,
+      "oof_recall": 0.5349,
+      "oof_f1": 0.4259,
+      "oof_confusion_matrix": {
+        "tn": 3748,
+        "fp": 420,
+        "fn": 200,
+        "tp": 230
+      }
+    },
+    "LogisticRegression | volume-only (5)": {
+      "params": {
+        "C": 0.1
+      },
+      "cv_pr_auc_mean": 0.4026,
+      "cv_pr_auc_std": 0.0099,
+      "cv_roc_auc_mean": 0.8196,
+      "cv_roc_auc_std": 0.0124,
+      "pr_auc_folds": [
+        0.4198,
+        0.3928,
+        0.4017,
+        0.4057,
+        0.393
+      ],
+      "oof_threshold": 0.6775,
+      "oof_precision": 0.3502,
+      "oof_recall": 0.5326,
+      "oof_f1": 0.4225,
+      "oof_confusion_matrix": {
+        "tn": 3743,
+        "fp": 425,
+        "fn": 201,
+        "tp": 229
+      }
+    },
+    "LogisticRegression | all 47 (Phase 2 reference)": {
+      "params": {
+        "C": 0.1
+      },
+      "cv_pr_auc_mean": 0.7007,
+      "cv_pr_auc_std": 0.0303,
+      "cv_roc_auc_mean": 0.9455,
+      "cv_roc_auc_std": 0.0044,
+      "pr_auc_folds": [
+        0.7399,
+        0.6986,
+        0.6741,
+        0.7294,
+        0.6617
+      ],
+      "oof_threshold": 0.7966,
+      "oof_precision": 0.6145,
+      "oof_recall": 0.7116,
+      "oof_f1": 0.6595,
+      "oof_confusion_matrix": {
+        "tn": 3976,
+        "fp": 192,
+        "fn": 124,
+        "tp": 306
+      }
+    },
+    "RandomForest | app-compatible (9)": {
+      "params": {
+        "max_depth": null,
+        "min_samples_leaf": 5
+      },
+      "cv_pr_auc_mean": 0.4097,
+      "cv_pr_auc_std": 0.0319,
+      "cv_roc_auc_mean": 0.7968,
+      "cv_roc_auc_std": 0.0064,
+      "pr_auc_folds": [
+        0.4335,
+        0.3809,
+        0.4226,
+        0.4476,
+        0.364
+      ],
+      "oof_threshold": 0.4755,
+      "oof_precision": 0.3646,
+      "oof_recall": 0.4163,
+      "oof_f1": 0.3887,
+      "oof_confusion_matrix": {
+        "tn": 3856,
+        "fp": 312,
+        "fn": 251,
+        "tp": 179
+      }
+    },
+    "RandomForest | volume-only (5)": {
+      "params": {
+        "max_depth": null,
+        "min_samples_leaf": 5
+      },
+      "cv_pr_auc_mean": 0.4142,
+      "cv_pr_auc_std": 0.0309,
+      "cv_roc_auc_mean": 0.8006,
+      "cv_roc_auc_std": 0.0167,
+      "pr_auc_folds": [
+        0.3727,
+        0.4295,
+        0.4588,
+        0.4231,
+        0.3869
+      ],
+      "oof_threshold": 0.5445,
+      "oof_precision": 0.4112,
+      "oof_recall": 0.393,
+      "oof_f1": 0.4019,
+      "oof_confusion_matrix": {
+        "tn": 3926,
+        "fp": 242,
+        "fn": 261,
+        "tp": 169
+      }
+    },
+    "RandomForest | all 47 (Phase 2 reference)": {
+      "params": {
+        "max_depth": null,
+        "min_samples_leaf": 5
+      },
+      "cv_pr_auc_mean": 0.7261,
+      "cv_pr_auc_std": 0.0179,
+      "cv_roc_auc_mean": 0.9464,
+      "cv_roc_auc_std": 0.0108,
+      "pr_auc_folds": [
+        0.7468,
+        0.7298,
+        0.7205,
+        0.7385,
+        0.6948
+      ],
+      "oof_threshold": 0.4652,
+      "oof_precision": 0.6144,
+      "oof_recall": 0.7744,
+      "oof_f1": 0.6852,
+      "oof_confusion_matrix": {
+        "tn": 3959,
+        "fp": 209,
+        "fn": 97,
+        "tp": 333
+      }
+    },
+    "XGBoost | app-compatible (9)": {
+      "params": {
+        "max_depth": 3,
+        "n_estimators": 300
+      },
+      "cv_pr_auc_mean": 0.4269,
+      "cv_pr_auc_std": 0.0198,
+      "cv_roc_auc_mean": 0.8166,
+      "cv_roc_auc_std": 0.0048,
+      "pr_auc_folds": [
+        0.4603,
+        0.4138,
+        0.4208,
+        0.4361,
+        0.4036
+      ],
+      "oof_threshold": 0.7367,
+      "oof_precision": 0.4179,
+      "oof_recall": 0.4442,
+      "oof_f1": 0.4307,
+      "oof_confusion_matrix": {
+        "tn": 3902,
+        "fp": 266,
+        "fn": 239,
+        "tp": 191
+      }
+    },
+    "XGBoost | volume-only (5)": {
+      "params": {
+        "max_depth": 3,
+        "n_estimators": 300
+      },
+      "cv_pr_auc_mean": 0.4363,
+      "cv_pr_auc_std": 0.0232,
+      "cv_roc_auc_mean": 0.8209,
+      "cv_roc_auc_std": 0.0125,
+      "pr_auc_folds": [
+        0.4036,
+        0.4756,
+        0.4298,
+        0.4404,
+        0.4321
+      ],
+      "oof_threshold": 0.7011,
+      "oof_precision": 0.3718,
+      "oof_recall": 0.4721,
+      "oof_f1": 0.416,
+      "oof_confusion_matrix": {
+        "tn": 3825,
+        "fp": 343,
+        "fn": 227,
+        "tp": 203
+      }
+    },
+    "XGBoost | all 47 (Phase 2 reference)": {
+      "params": {
+        "max_depth": 3,
+        "n_estimators": 300
+      },
+      "cv_pr_auc_mean": 0.7369,
+      "cv_pr_auc_std": 0.0165,
+      "cv_roc_auc_mean": 0.9475,
+      "cv_roc_auc_std": 0.0073,
+      "pr_auc_folds": [
+        0.7584,
+        0.7433,
+        0.731,
+        0.7429,
+        0.7088
+      ],
+      "oof_threshold": 0.6427,
+      "oof_precision": 0.6298,
+      "oof_recall": 0.7674,
+      "oof_f1": 0.6918,
+      "oof_confusion_matrix": {
+        "tn": 3974,
+        "fp": 194,
+        "fn": 100,
+        "tp": 330
+      }
+    }
+  },
+  "base_rate": 0.0935,
+  "generated_utc": "2026-11-11T10:59:10+00:00",
+  "phase2_run_id": "run-20261111-102008"
+}
