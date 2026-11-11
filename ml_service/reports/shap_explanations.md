@@ -1,6 +1,6 @@
 # Phase 3: SHAP explanations for the provider-level XGBoost model
 
-_Generated 2026-11-11T10:39:09+00:00 by `training/explain_shap.py` for run `run-20261111-102008` (SHAP 0.46.0, XGBoost 2.1.3). The model was not retrained (SHA-256 `24939f046aa1b073…`, unchanged: True)._
+_Generated 2026-11-11T10:46:07+00:00 by `training/explain_shap.py` for run `run-20261111-102008` (SHAP 0.46.0, XGBoost 2.1.3). The model was not retrained (SHA-256 `24939f046aa1b073…`, unchanged: True)._
 
 > **How to read these explanations**
 > - They explain the **provider-level risk score** of the Phase 2 XGBoost model only. They do not apply to individual claims or to the Isolation Forest.
@@ -22,7 +22,7 @@ _Generated 2026-11-11T10:39:09+00:00 by `training/explain_shap.py` for run `run-
 | Providers checked | 5,410 |
 | Feature order matches the model's input features | True |
 | max \|base + Σ SHAP − model log-odds\| | 6.7e-06 |
-| max \|sigmoid(base + Σ SHAP) − predict_proba\| | 6.6e-07 |
+| max \|sigmoid(base + Σ SHAP) − model risk score\| | 6.6e-07 |
 | max \|SHAP − XGBoost's built-in exact contributions\| | 0.0e+00 |
 | max \|score − Phase 2 inference score (`fraud_ml/predict.py`)\| | 0.0e+00 |
 | Identical values from two independent explainer instances | True |

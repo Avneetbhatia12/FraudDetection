@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-11-11T10:39:09+00:00",
+  "generated_utc": "2026-11-11T10:46:07+00:00",
   "run_id": "run-20261111-102008",
   "shap_version": "0.46.0",
   "xgboost_version": "2.1.3",
@@ -11,7 +11,7 @@
   "checks": {
     "n_providers": 5410,
     "max_abs_additivity_error_log_odds": 6.67572021484375e-06,
-    "max_abs_probability_error": 6.556510925292969e-07,
+    "max_abs_score_error": 6.556510925292969e-07,
     "max_abs_diff_vs_xgboost_native_contribs": 0.0,
     "max_abs_diff_vs_phase2_inference_scores": 0.0,
     "feature_order_matches_model": true,

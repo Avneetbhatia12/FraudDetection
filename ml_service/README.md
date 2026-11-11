@@ -9,7 +9,7 @@ React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via t
                      │  after the claim commits, non-blocking
                      ▼
               ML service (FastAPI, internal only) ──read-only──► MySQL
-                     │  returns: probability, anomaly score, hybrid score, SHAP
+                     │  returns: risk score (uncalibrated), anomaly score, hybrid score, SHAP
                      ▼
               Express stores the result in the CLAIM_RISK_SCORE tables (database/ml_schema.sql)
 ```

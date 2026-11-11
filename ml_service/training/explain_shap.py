@@ -56,11 +56,11 @@ def main() -> None:
     prob = ex.model.predict_proba(ex.X)[:, 1]
     recon = exp_all.base_values + exp_all.values.sum(axis=1)
     native = ex.model.get_booster().predict(xgb.DMatrix(ex.X), pred_contribs=True)
-    saved_scores = ex.predictor.score_providers(prep.static, prep.claims, all_ids)["risk_probability"].to_numpy()
+    saved_scores = ex.predictor.score_providers(prep.static, prep.claims, all_ids)["risk_score"].to_numpy()
     checks = {
         "n_providers": len(all_ids),
         "max_abs_additivity_error_log_odds": float(np.abs(recon - margin).max()),
-        "max_abs_probability_error": float(np.abs(1 / (1 + np.exp(-recon)) - prob).max()),
+        "max_abs_score_error": float(np.abs(1 / (1 + np.exp(-recon)) - prob).max()),
         "max_abs_diff_vs_xgboost_native_contribs": float(np.abs(native[:, :-1] - exp_all.values).max()),
         "max_abs_diff_vs_phase2_inference_scores": float(np.abs(prob - saved_scores).max()),
         "feature_order_matches_model": list(ex.model.get_booster().feature_names) == ex.features,

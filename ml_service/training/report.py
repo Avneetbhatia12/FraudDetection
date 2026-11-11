@@ -29,6 +29,9 @@ def render(meta: dict, cv: dict, ab: dict, out: dict) -> str:
       "See `reports/dataset_exploration_kaggle.md`.")
     w("> - **Labels:** `PotentialFraud` is a **provider-level** label of **undocumented provenance**. These results measure how well "
       "models reproduce *these labels*. They are **not** verified fraud detection, and **not** claim-level fraud accuracy.")
+    w("> - **Model outputs are uncalibrated risk scores**, not probabilities of fraud. The classifiers were trained with class "
+      "weighting, so a score of 0.9 does not mean a 90% chance of anything. Scores rank providers. Thresholds were chosen "
+      "on development out-of-fold predictions (section 3a).")
     w("> - **Task:** the supervised models predict **provider-level risk at the end of the observation period**. They are not "
       "real-time claim-level fraud detectors.")
     w("> - **Isolation Forest** flags statistically **unusual claims**. An anomaly is not a fraud finding.\n")
@@ -238,3 +241,15 @@ def render(meta: dict, cv: dict, ab: dict, out: dict) -> str:
     w("- These models use dataset-specific fields (ICD-9 codes, physicians, deductibles) that the application database does not have, "
       "so they cannot directly score the application's claims. Integration needs a separate design.\n")
     return "\n".join(L)
+
+
+if __name__ == "__main__":
+    # Re-render reports/model_comparison.md from SAVED results only (does not re-evaluate the test set):
+    #   .venv/Scripts/python.exe -m training.report
+    from fraud_ml import artifacts
+    from fraud_ml.config import REPORTS_DIR
+    rid = artifacts.latest_run_id()
+    md = render(artifacts.load_json(rid, "metadata"), artifacts.load_json(rid, "cv_results"),
+                artifacts.load_json(rid, "ablation_results"), artifacts.load_json(rid, "test_results"))
+    (REPORTS_DIR / "model_comparison.md").write_text(md, encoding="utf-8")
+    print(f"Re-rendered reports/model_comparison.md from saved results of {rid}")

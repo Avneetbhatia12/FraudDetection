@@ -57,7 +57,7 @@ class ExplainTests(unittest.TestCase):
 
     def test_scores_match_phase2_inference(self):
         s = self.ex.predictor.score_providers(self.prep.static, self.prep.claims, self.sample[:50])
-        for pid, score in zip(s["Provider"], s["risk_probability"]):
+        for pid, score in zip(s["Provider"], s["risk_score"]):
             self.assertAlmostEqual(self.ex.explain(pid)["risk_score"], float(score), places=6)
 
     # ── global ──────────────────────────────────────────────────

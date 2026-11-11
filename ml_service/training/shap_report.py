@@ -35,7 +35,7 @@ def render(r: dict) -> str:
     w(f"| Providers checked | {c['n_providers']:,} |")
     w(f"| Feature order matches the model's input features | {c['feature_order_matches_model']} |")
     w(f"| max \\|base + Σ SHAP − model log-odds\\| | {c['max_abs_additivity_error_log_odds']:.1e} |")
-    w(f"| max \\|sigmoid(base + Σ SHAP) − predict_proba\\| | {c['max_abs_probability_error']:.1e} |")
+    w(f"| max \\|sigmoid(base + Σ SHAP) − model risk score\\| | {c['max_abs_score_error']:.1e} |")
     w(f"| max \\|SHAP − XGBoost's built-in exact contributions\\| | {c['max_abs_diff_vs_xgboost_native_contribs']:.1e} |")
     w(f"| max \\|score − Phase 2 inference score (`fraud_ml/predict.py`)\\| | {c['max_abs_diff_vs_phase2_inference_scores']:.1e} |")
     w(f"| Identical values from two independent explainer instances | {c['reproducible_across_explainer_instances']} |")
