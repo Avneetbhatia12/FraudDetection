@@ -1,0 +1,46 @@
+{
+  "dataset": "synthetic_v1",
+  "kind": "synthetic",
+  "contains_real_data": false,
+  "generator": "ml_service/training/generate_synthetic.py",
+  "generator_version": "1.0.0",
+  "seed": 42,
+  "generated_at": "2026-11-11T09:08:51+00:00",
+  "date_range": [
+    "2024-01-01",
+    "2025-12-31"
+  ],
+  "rows": {
+    "patients": 4000,
+    "policies": 4333,
+    "providers": 150,
+    "claims": 13600
+  },
+  "fraud_rate": 0.0795,
+  "fraud_patterns": {
+    "upcoding": 250,
+    "provider_ring": 201,
+    "near_threshold": 114,
+    "duplicate_claim": 146,
+    "provider_mismatch": 114,
+    "out_of_policy_period": 42,
+    "claim_burst": 214
+  },
+  "fraud_ring_provider_ids": [
+    66,
+    77,
+    131,
+    140,
+    142
+  ],
+  "excluded_columns": {
+    "CLAIM.STATUS": "post-review decision (label leakage)",
+    "CLAIM.APPROVED_AMOUNT": "post-review decision (label leakage)",
+    "PATIENT names/emails/addresses": "not needed; avoids fake PII"
+  },
+  "baseline_high_amount_rule": {
+    "flagged": 787,
+    "precision": 0.1626,
+    "recall": 0.1184
+  }
+}

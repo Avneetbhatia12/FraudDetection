@@ -6,6 +6,8 @@ frontend/.env.production
 frontend/.env.development
 *.env
 .env.*
+# Templates with placeholder values only — safe and useful to track
+!.env.example
 
 # ── Dependencies ────────────────────────────────────────────
 node_modules/
@@ -33,6 +35,18 @@ desktop.ini
 .idea/
 *.suo
 *.user
+
+# ── Database backups (contain real patient data) ────────────
+backups/
+
+# ── Python / ML service ─────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+ml_service/artifacts/*
+!ml_service/artifacts/.gitkeep
+# Generated data: reproducible from training/generate_synthetic.py (seed in manifest.json)
+ml_service/datasets/**/*.csv
 
 # ── Misc ────────────────────────────────────────────────────
 *.pem

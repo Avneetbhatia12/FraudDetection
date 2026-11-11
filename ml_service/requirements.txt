@@ -1,0 +1,14 @@
+# PROVISIONAL — target Python 3.12. Verified when the venv is created in Phase 2.
+# numpy is held at 2.0.x because numba (a shap dependency) does not yet support newer numpy.
+numpy==2.0.2
+pandas==2.2.3
+scikit-learn==1.5.2
+xgboost==2.1.3
+shap==0.46.0
+joblib==1.4.2
+fastapi==0.115.5
+uvicorn==0.32.1
+pydantic==2.10.3
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
+python-dotenv==1.0.1
