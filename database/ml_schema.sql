@@ -148,6 +148,20 @@ CREATE TRIGGER trg_prp_no_update BEFORE UPDATE ON PROVIDER_RISK_PROFILE FOR EACH
 DROP TRIGGER IF EXISTS trg_prp_no_delete$$
 CREATE TRIGGER trg_prp_no_delete BEFORE DELETE ON PROVIDER_RISK_PROFILE FOR EACH ROW
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PROVIDER_RISK_PROFILE is append-only'$$
+-- Reject an outcome whose linked snapshot is for another claim, is a failed attempt, or was assessed after the
+-- decision. An outcome with no link (ASSESSMENT_ID NULL) is allowed but excluded from training.
+DROP TRIGGER IF EXISTS trg_cio_valid_snapshot$$
+CREATE TRIGGER trg_cio_valid_snapshot BEFORE INSERT ON CLAIM_INVESTIGATION_OUTCOME FOR EACH ROW
+BEGIN
+    IF NEW.ASSESSMENT_ID IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM CLAIM_RISK_ASSESSMENT a
+        WHERE a.ASSESSMENT_ID = NEW.ASSESSMENT_ID AND a.CLAIM_ID = NEW.CLAIM_ID
+          AND a.ASSESSMENT_STATUS <> 'failed'
+          AND a.ASSESSED_AT <= COALESCE(NEW.DECIDED_AT, CURRENT_TIMESTAMP)) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
+            'Linked assessment must be a non-failed snapshot of the same claim assessed at or before the decision';
+    END IF;
+END$$
 DROP TRIGGER IF EXISTS trg_cio_no_update$$
 CREATE TRIGGER trg_cio_no_update BEFORE UPDATE ON CLAIM_INVESTIGATION_OUTCOME FOR EACH ROW
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CLAIM_INVESTIGATION_OUTCOME is append-only'$$
@@ -180,21 +194,29 @@ SELECT * FROM (
     FROM PROVIDER_RISK_PROFILE p) x
 WHERE RN = 1;
 
--- Training-data safeguard (Track 3): for every outcome, the assessment snapshot that EXISTED when the outcome was
--- recorded: the linked ASSESSMENT_ID if it was assessed at or before DECIDED_AT, otherwise the latest non-failed
--- snapshot with ASSESSED_AT <= DECIDED_AT. Future supervised training must take its features from this snapshot and
--- must never recompute them with information entered later. NULL = no valid snapshot (exclude from training).
+-- Training-data safeguard (Track 3), STRICT LINKING ONLY:
+-- an outcome may be used for training only with the exact snapshot the investigator was shown, i.e. its linked
+-- ASSESSMENT_ID, and only if that snapshot belongs to the same claim, is not a failed attempt, and was assessed at or
+-- before DECIDED_AT. There is NO fallback: if the link is absent or invalid, TRAINING_ASSESSMENT_ID is NULL and
+-- EXCLUSION_REASON says why. No other snapshot (older or newer) is ever substituted. The association is one-to-one,
+-- because it uses the outcome's own ASSESSMENT_ID. Invalid links are also rejected at insert (trg_cio_valid_snapshot);
+-- the CASE branches below are defence in depth. Features must never be recomputed with information entered later.
 CREATE OR REPLACE VIEW OUTCOME_TRAINING_SNAPSHOT AS
 SELECT o.OUTCOME_ID, o.CLAIM_ID, o.OUTCOME, o.OUTCOME_BASIS, o.DECIDED_AT,
-       COALESCE(
-         (SELECT a.ASSESSMENT_ID FROM CLAIM_RISK_ASSESSMENT a
-           WHERE a.ASSESSMENT_ID = o.ASSESSMENT_ID AND a.CLAIM_ID = o.CLAIM_ID
-             AND a.ASSESSED_AT <= o.DECIDED_AT AND a.ASSESSMENT_STATUS <> 'failed'),
-         (SELECT a.ASSESSMENT_ID FROM CLAIM_RISK_ASSESSMENT a
-           WHERE a.CLAIM_ID = o.CLAIM_ID AND a.ASSESSED_AT <= o.DECIDED_AT AND a.ASSESSMENT_STATUS <> 'failed'
-           ORDER BY a.ASSESSED_AT DESC, a.ASSESSMENT_ID DESC LIMIT 1)
-       ) AS TRAINING_ASSESSMENT_ID
-FROM CLAIM_INVESTIGATION_OUTCOME o;
+       o.ASSESSMENT_ID AS LINKED_ASSESSMENT_ID,
+       CASE WHEN a.ASSESSMENT_ID IS NOT NULL AND a.CLAIM_ID = o.CLAIM_ID AND a.ASSESSMENT_STATUS <> 'failed'
+                 AND a.ASSESSED_AT <= o.DECIDED_AT
+            THEN a.ASSESSMENT_ID END AS TRAINING_ASSESSMENT_ID,
+       CASE WHEN o.ASSESSMENT_ID IS NULL           THEN 'no_linked_snapshot'
+            WHEN a.ASSESSMENT_ID IS NULL           THEN 'linked_snapshot_missing'
+            WHEN a.CLAIM_ID <> o.CLAIM_ID          THEN 'linked_snapshot_other_claim'
+            WHEN a.ASSESSMENT_STATUS = 'failed'    THEN 'linked_snapshot_failed'
+            WHEN a.ASSESSED_AT > o.DECIDED_AT      THEN 'linked_snapshot_after_decision'
+       END AS EXCLUSION_REASON,
+       (a.ASSESSMENT_ID IS NOT NULL AND a.CLAIM_ID = o.CLAIM_ID AND a.ASSESSMENT_STATUS <> 'failed'
+        AND a.ASSESSED_AT <= o.DECIDED_AT AND o.OUTCOME IN ('Confirmed Fraud','Legitimate')) AS IS_TRAINING_ELIGIBLE
+FROM CLAIM_INVESTIGATION_OUTCOME o
+LEFT JOIN CLAIM_RISK_ASSESSMENT a ON a.ASSESSMENT_ID = o.ASSESSMENT_ID;
 
 -- Latest outcome per claim; IS_LABEL_CANDIDATE = 1 only for final outcomes (future supervised training, Track 3)
 CREATE OR REPLACE VIEW CLAIM_LATEST_OUTCOME AS

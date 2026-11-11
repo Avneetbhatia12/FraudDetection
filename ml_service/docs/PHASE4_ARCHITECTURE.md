@@ -110,9 +110,13 @@ Validated in a throwaway schema (applies twice safely; 10 invalid operations rej
   version and a SHA-256 digest of its deterministic content. Express appends a new snapshot only when the digest differs from
   `CLAIM_LATEST_VALID_ASSESSMENT` and never updates or deletes snapshots. A back-dated claim entered later therefore produces a new
   snapshot for the affected later-dated claims, while the old one is kept.
-- **Training rule (Track 3):** supervised training must use, for each outcome, the snapshot that existed when the outcome was
-  recorded (`OUTCOME_TRAINING_SNAPSHOT`: the linked snapshot if it was assessed at or before the decision, else the latest non-failed
-  snapshot before it). Historical features are **never** recomputed with information entered later.
+- **Training rule (Track 3), strict linking only:** an outcome trains only with its **linked** snapshot (`ASSESSMENT_ID`, the one
+  the investigator was shown), and only if it is for the same claim, non-failed, and assessed at or before the decision. Otherwise
+  the outcome is **excluded** with a reason. **No other snapshot is ever substituted** (no fallback to an older or newer one).
+  Enforced three ways: the insert trigger `trg_cio_valid_snapshot` rejects invalid links; `OUTCOME_TRAINING_SNAPSHOT` returns
+  `TRAINING_ASSESSMENT_ID`, `EXCLUSION_REASON` and `IS_TRAINING_ELIGIBLE` (final outcomes with a valid link); and
+  `app_risk.snapshots.select_training_snapshot` applies the same rule. Express (4.4) must therefore link the snapshot actually
+  displayed when an outcome is recorded. Historical features are **never** recomputed with information entered later.
 
 **Recommended (not executed):** a dedicated read-only MySQL account for the ML service:
 ```sql

@@ -48,10 +48,14 @@ def main() -> None:
           "**Append-only:** a new snapshot is stored only when its digest differs from the claim's latest **non-failed** snapshot "
           "(`CLAIM_LATEST_VALID_ASSESSMENT`). Snapshots are never updated or deleted (database triggers).", "",
           "## Training-data rule (Track 3)", "",
-          "Future supervised training must take each outcome's features from the snapshot that **existed when the investigator "
-          "recorded the outcome**: the linked snapshot if it was assessed at or before the decision, otherwise the latest non-failed "
-          "snapshot before the decision (database view `OUTCOME_TRAINING_SNAPSHOT`; `app_risk.snapshots.select_training_snapshot`). "
-          "Historical training features must **never** be recomputed with information entered later.", "",
+          "**Strict linking only.** An outcome is usable for supervised training only with the **exact snapshot linked to it** "
+          "(`ASSESSMENT_ID`, the one the investigator was shown), and only if that snapshot belongs to the same claim, is not a failed "
+          "attempt, and was assessed **at or before** the decision. If the link is absent or invalid, the outcome is **excluded**, with "
+          "a reason (`no_linked_snapshot`, `linked_snapshot_missing`, `linked_snapshot_other_claim`, `linked_snapshot_failed`, "
+          "`linked_snapshot_after_decision`). **No other snapshot, older or newer, is ever substituted.** Invalid links are rejected "
+          "at insert (trigger `trg_cio_valid_snapshot`); the view `OUTCOME_TRAINING_SNAPSHOT` and "
+          "`app_risk.snapshots.select_training_snapshot` apply the same rule. Historical training features must **never** be "
+          "recomputed with information entered later.", "",
           "## Provider level", "",
           "Claims with `CLAIM_DATE` ≤ the as-of date, compared with peers at the same cutoff (date-based; independent of `CLAIM_ID`).", "",
           "Dates are calendar dates from MySQL (`DATE`), not converted through any timezone (tested under IST).", "",

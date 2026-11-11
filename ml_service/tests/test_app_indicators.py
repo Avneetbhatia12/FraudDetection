@@ -271,19 +271,26 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(store[0], first)                                                        # first snapshot intact
         self.assertNotEqual(store[0]["indicators_digest"], store[1]["indicators_digest"])
 
-    def test_training_snapshot_selection(self):
+    def test_training_snapshot_strict_linking(self):
+        """Only the outcome's own linked snapshot is ever used; invalid or absent links exclude the outcome (no fallback)."""
         from datetime import datetime
         from app_risk.snapshots import select_training_snapshot
-        snaps = [{"assessment_id": 1, "assessed_at": datetime(2024, 6, 1, 9), "assessment_status": "completed"},
-                 {"assessment_id": 2, "assessed_at": datetime(2024, 6, 3, 9), "assessment_status": "failed"},
-                 {"assessment_id": 3, "assessed_at": datetime(2024, 6, 5, 9), "assessment_status": "completed"},
-                 {"assessment_id": 4, "assessed_at": datetime(2024, 6, 9, 9), "assessment_status": "completed"}]
+        snaps = [{"assessment_id": 1, "claim_id": 7, "assessed_at": datetime(2024, 6, 1, 9), "assessment_status": "completed"},
+                 {"assessment_id": 2, "claim_id": 7, "assessed_at": datetime(2024, 6, 3, 9), "assessment_status": "failed"},
+                 {"assessment_id": 3, "claim_id": 7, "assessed_at": datetime(2024, 6, 5, 9), "assessment_status": "completed"},
+                 {"assessment_id": 4, "claim_id": 7, "assessed_at": datetime(2024, 6, 9, 9), "assessment_status": "completed"},
+                 {"assessment_id": 5, "claim_id": 8, "assessed_at": datetime(2024, 6, 1, 9), "assessment_status": "completed"}]
         decided = datetime(2024, 6, 6, 12)
-        self.assertEqual(select_training_snapshot(snaps, decided)["assessment_id"], 3)               # latest before the decision
-        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=1)["assessment_id"], 1)
-        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=4)["assessment_id"], 3)  # created after: rejected
-        self.assertEqual(select_training_snapshot(snaps, decided, linked_assessment_id=2)["assessment_id"], 3)  # failed: rejected
-        self.assertIsNone(select_training_snapshot(snaps, datetime(2024, 5, 1)))
+        pick = lambda link: select_training_snapshot(snaps, 7, decided, link)  # noqa: E731
+        s, why = pick(1)
+        self.assertEqual((s["assessment_id"], why), (1, None))          # linked one used, although snapshot 3 is newer and also before the decision
+        self.assertEqual(pick(3)[0]["assessment_id"], 3)
+        for link, reason in ((None, "no_linked_snapshot"), (99, "linked_snapshot_missing"), (5, "linked_snapshot_other_claim"),
+                             (2, "linked_snapshot_failed"), (4, "linked_snapshot_after_decision")):
+            self.assertEqual(pick(link), (None, reason), link)           # excluded: nothing substituted
+        exact = select_training_snapshot(snaps, 7, datetime(2024, 6, 5, 9), 3)    # assessed exactly at decision time: valid
+        self.assertEqual(exact[0]["assessment_id"], 3)
+        self.assertEqual(pick(1), pick(1))                              # deterministic
 
 
 class ProviderProfileTests(unittest.TestCase):

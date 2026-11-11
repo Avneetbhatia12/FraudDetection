@@ -23,11 +23,12 @@ latest NON-FAILED snapshot (database view CLAIM_LATEST_VALID_ASSESSMENT), or whe
 Failed attempts have no digest and are never the comparison baseline (otherwise a timeout would force a duplicate
 snapshot). Snapshots are never updated or deleted (enforced in the database).
 
-Training rule (Track 3)
------------------------
-Supervised training must use the snapshot that existed when the investigator recorded the outcome:
-the snapshot linked to the outcome (ASSESSMENT_ID), otherwise the latest snapshot with assessed_at <= decided_at.
-Features must never be recomputed with information entered later.
+Training rule (Track 3): strict linking only
+--------------------------------------------
+An outcome is usable for supervised training only with the EXACT snapshot linked to it (ASSESSMENT_ID): it must belong
+to the same claim, must not be a failed attempt, and must have been assessed at or before the decision. If the link is
+absent or invalid, the outcome is EXCLUDED, with a reason. No other snapshot, older or newer, is ever substituted.
+Features must never be recomputed with information entered later. Mirrors the database view OUTCOME_TRAINING_SNAPSHOT.
 """
 from __future__ import annotations
 
@@ -58,17 +59,23 @@ def snapshot_decision(latest_stored_digest: Optional[str], new_assessment: dict)
     return "unchanged"
 
 
-def select_training_snapshot(snapshots: list[dict], decided_at: datetime, linked_assessment_id: Optional[int] = None) -> Optional[dict]:
-    """The snapshot an investigator saw when recording an outcome (never one computed afterwards).
+def select_training_snapshot(snapshots: list[dict], claim_id: int, decided_at: datetime,
+                             linked_assessment_id: Optional[int]) -> tuple[Optional[dict], Optional[str]]:
+    """Return (snapshot, None) for the outcome's linked snapshot if valid, else (None, exclusion_reason).
 
-    `snapshots`: stored rows for ONE claim, each with assessment_id, assessed_at (datetime) and assessment_status.
+    `snapshots`: stored assessment rows, each with assessment_id, claim_id, assessed_at (datetime) and
+    assessment_status. Only the linked snapshot is ever considered; there is no fallback.
     """
-    usable = [s for s in snapshots if s["assessment_status"] != "failed" and s["assessed_at"] <= decided_at]
-    if linked_assessment_id is not None:
-        linked = [s for s in usable if s["assessment_id"] == linked_assessment_id]
-        if linked:
-            return linked[0]
-        # A linked snapshot created after the decision (or failed) is not valid training input; fall through.
-    if not usable:
-        return None
-    return max(usable, key=lambda s: (s["assessed_at"], s["assessment_id"]))
+    if linked_assessment_id is None:
+        return None, "no_linked_snapshot"
+    linked = [s for s in snapshots if s["assessment_id"] == linked_assessment_id]
+    if not linked:
+        return None, "linked_snapshot_missing"
+    s = linked[0]
+    if s["claim_id"] != claim_id:
+        return None, "linked_snapshot_other_claim"
+    if s["assessment_status"] == "failed":
+        return None, "linked_snapshot_failed"
+    if s["assessed_at"] > decided_at:
+        return None, "linked_snapshot_after_decision"
+    return s, None
