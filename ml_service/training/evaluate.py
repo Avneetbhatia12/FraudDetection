@@ -134,7 +134,7 @@ def main() -> None:
     sel = meta["selected_model"]
     chosen = {n: classification_metrics(oof["y"], oof[f"p_{n}"], meta["thresholds"][n]) for n in MODEL_NAMES}
     for n in MODEL_NAMES:
-        assert abs(threshold_max_f1(oof["y"], oof[f"p_{n}"]) - meta["thresholds"][n]) < 1e-9, f"{n} threshold not reproducible"
+        assert abs(threshold_max_f1(oof["y"], oof[f"p_{n}"]) - meta["thresholds"][n]) < 1e-6, f"{n} threshold not reproducible"  # CSV float round-trip
     grid = sorted({0.3, 0.4, 0.5, 0.6, 0.7, 0.8, round(meta["thresholds"][sel], 4)})
     sens = []
     for g in grid:

@@ -1,6 +1,6 @@
 # Phase 2: provider-level fraud-risk models and claim-level anomaly detection
 
-_Generated 2026-11-11 10:12 UTC from run `run-20261111-100418` (code commit `1c825a7`) by `training/evaluate.py`._
+_Generated 2026-11-11 10:26 UTC from run `run-20261111-102008` (code commit `acd0a23`) by `training/evaluate.py`._
 
 > **Read this first.**
 > - **Dataset:** public Kaggle "Healthcare Provider Fraud Detection Analysis" (CC0 as declared by the uploader). See `reports/dataset_exploration_kaggle.md`.
@@ -46,6 +46,30 @@ _Generated 2026-11-11 10:12 UTC from run `run-20261111-100418` (code commit `1c8
 | Volume-only baseline | 661 | 75 | 34 | 42 |
 
 The test set has 76 positive providers, so the intervals are wide. The PR-AUC intervals of XGBoost and LogisticRegression, RandomForest **overlap**, so the test set does not separate them reliably. Test PR-AUC for XGBoost (0.808) is higher than its CV mean (0.737). That is within the expected variation for this sample size; nothing was tuned on it.
+
+### 3a. How the decision thresholds were chosen (development data only)
+
+1. **Model and setting:** highest mean 5-fold CV PR-AUC. PR-AUC summarises all thresholds, so it does not pick one.
+2. **Threshold:** the selected setting's out-of-fold predictions for all 4,598 development providers (each predicted by the fold model that did not train on it) are pooled. The threshold is the point on the precision–recall curve with the **highest F1**. The test set is not used.
+3. The final model, refitted on all development providers, is applied at that threshold to the test set exactly once. The out-of-fold scores come from fold models trained on 80% of the development data, so the threshold may be slightly off for the final model. Reselecting it on the test set would leak, so it is not done.
+
+| Model | Threshold | OOF precision | OOF recall | OOF F1 |
+|---|---|---|---|---|
+| LogisticRegression | 0.797 | 0.615 | 0.712 | 0.659 |
+| RandomForest | 0.465 | 0.614 | 0.774 | 0.685 |
+| XGBoost | 0.643 | 0.630 | 0.767 | 0.692 |
+
+**Sensitivity of XGBoost to the threshold (development out-of-fold predictions only):** the trade-off is gradual, so a different operating point (e.g. favouring recall for investigator triage) can be chosen on development data without retraining.
+
+| Threshold | Precision | Recall | F1 | Providers flagged |
+|---|---|---|---|---|
+| 0.300 | 0.480 | 0.879 | 0.621 | 787 |
+| 0.400 | 0.521 | 0.840 | 0.643 | 693 |
+| 0.500 | 0.562 | 0.816 | 0.666 | 624 |
+| 0.600 | 0.605 | 0.784 | 0.683 | 557 |
+| 0.643 (chosen) | 0.629 | 0.765 | 0.691 | 523 |
+| 0.700 | 0.637 | 0.719 | 0.675 | 485 |
+| 0.800 | 0.684 | 0.626 | 0.654 | 393 |
 
 ## 4. Performance across provider-size groups
 
@@ -133,8 +157,8 @@ A single forest over all claims flags **95.0% inpatient claims** at the 95th per
 
 ## 7. Selected model and saved artifacts
 
-- **Selected supervised model:** XGBoost (`{'max_depth': 3, 'n_estimators': 300}`), decision threshold 0.643, chosen by CV PR-AUC as pre-registered. Its margin over the runner-up is within noise (section 2). Random Forest is a statistically comparable alternative.
-- **Artifacts** (`ml_service/artifacts/run-20261111-100418/`, git-ignored, reproducible): `reference_stats.joblib` (fitted preprocessing statistics), `provider_<Model>.joblib` for all three models plus `provider_volume_baseline.joblib`, `isolation_forest.joblib` (per claim type), `isolation_forest_global.joblib` (diagnostic), `metadata.json`, `cv_results.json`, `oof_predictions.csv`, `ablation_results.json`, `test_results.json`.
+- **Selected supervised model:** XGBoost (`{'max_depth': 3, 'n_estimators': 300}`). The **model and setting** were chosen by mean CV PR-AUC (threshold-independent). The **decision threshold 0.643** was chosen separately, as the F1-maximising threshold on development out-of-fold predictions (section 3a). Its margin over the runner-up is within noise (section 2), so Random Forest is a statistically comparable alternative.
+- **Artifacts** (`ml_service/artifacts/run-20261111-102008/`, git-ignored, reproducible): `reference_stats.joblib` (fitted preprocessing statistics), `provider_<Model>.joblib` for all three models plus `provider_volume_baseline.joblib`, `isolation_forest.joblib` (per claim type), `isolation_forest_global.joblib` (diagnostic), `metadata.json`, `cv_results.json`, `oof_predictions.csv`, `ablation_results.json`, `test_results.json`.
 - **Inference** uses `fraud_ml/predict.py` (loads artifacts and never retrains). This evaluation itself ran through that module.
 
 ## 8. Limitations
