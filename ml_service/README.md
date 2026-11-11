@@ -34,6 +34,20 @@ The earlier synthetic-data prototype (commit `c2341d9`) is superseded and recove
   it is never copied onto individual claims.
 - Synthetic data (`datasets/synthetic_v1`) is for pipeline testing only. It is never used to train or report models.
 
+## Phase 2 results and limitations (summary; full detail in [reports/model_comparison.md](reports/model_comparison.md))
+- **Task:** provider-level risk of matching the dataset's `PotentialFraud` label at the end of the observation period.
+  This is **not** real-time, claim-level fraud detection.
+- **Label limitation:** `PotentialFraud` is a provider-level label whose provenance is **not documented** by the dataset author.
+  The metrics measure agreement with these labels, **not** verified fraud. The labels are never copied onto claims.
+- **Model selection:** model and setting by mean 5-fold CV PR-AUC on development providers. The decision threshold is the
+  F1-maximising threshold on pooled development out-of-fold predictions. The 15% held-out test providers were used only for the final evaluation.
+- **Isolation Forest limitations:** it flags claims that are unusual *for their claim type* (one forest each for inpatient and
+  outpatient). An anomaly is **not** a fraud finding. There are no claim-level labels, so its fraud-detection ability cannot be
+  measured. In this dataset its provider-level association with the labels is weak, and it adds almost nothing beyond provider
+  size and inpatient share.
+- **Other limitations:** 76 positive test providers (wide CIs); strong link between labels and provider size or inpatient mix;
+  one period (2008–09); age, gender and race excluded; dataset fields (ICD-9 codes, physicians) do not exist in the app database.
+
 ## Guarantees (for later integration)
 - **Fail-open:** if this service is down, claims are still created and rule-based flags still work exactly as before.
 - **New claims only:** no automatic backfill.

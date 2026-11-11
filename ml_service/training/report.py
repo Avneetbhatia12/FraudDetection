@@ -91,6 +91,28 @@ def render(meta: dict, cv: dict, ab: dict, out: dict) -> str:
       + ("higher" if T[sel]["pr_auc"] > best[sel]["pr_auc_mean"] else "lower")
       + f" than its CV mean ({best[sel]['pr_auc_mean']:.3f}). That is within the expected variation for this sample size; nothing was tuned on it.\n")
 
+    # 3a. Threshold selection
+    ts = out["threshold_selection"]
+    w("### 3a. How the decision thresholds were chosen (development data only)\n")
+    w("1. **Model and setting:** highest mean 5-fold CV PR-AUC. PR-AUC summarises all thresholds, so it does not pick one.")
+    w(f"2. **Threshold:** the selected setting's out-of-fold predictions for all {ts['n_oof_providers']:,} development providers "
+      "(each predicted by the fold model that did not train on it) are pooled. The threshold is the point on the precision–recall "
+      "curve with the **highest F1**. The test set is not used.")
+    w("3. The final model, refitted on all development providers, is applied at that threshold to the test set exactly once. "
+      "The out-of-fold scores come from fold models trained on 80% of the development data, so the threshold may be slightly "
+      "off for the final model. Reselecting it on the test set would leak, so it is not done.\n")
+    w("| Model | Threshold | OOF precision | OOF recall | OOF F1 |\n|---|---|---|---|---|")
+    for n in MODELS:
+        c = ts["chosen"][n]
+        w(f"| {n} | {c['threshold']:.3f} | {c['precision']:.3f} | {c['recall']:.3f} | {c['f1']:.3f} |")
+    w("")
+    w(f"**Sensitivity of {sel} to the threshold (development out-of-fold predictions only):** the trade-off is gradual, so a "
+      "different operating point (e.g. favouring recall for investigator triage) can be chosen on development data without retraining.\n")
+    w("| Threshold | Precision | Recall | F1 | Providers flagged |\n|---|---|---|---|---|")
+    for g in ts["sensitivity_selected"]:
+        w(f"| {g['threshold']:.3f}{' (chosen)' if g.get('chosen') else ''} | {g['precision']:.3f} | {g['recall']:.3f} | {g['f1']:.3f} | {g['flagged']} |")
+    w("")
+
     # 4. Size
     cuts = out["size_band_cuts_n_claims"]
     w("## 4. Performance across provider-size groups\n")
@@ -194,9 +216,10 @@ def render(meta: dict, cv: dict, ab: dict, out: dict) -> str:
 
     # 7. Selected model and artifacts
     w("## 7. Selected model and saved artifacts\n")
-    w(f"- **Selected supervised model:** {sel} (`{best[sel]['params']}`), decision threshold {meta['thresholds'][sel]:.3f}, "
-      "chosen by CV PR-AUC as pre-registered. Its margin over the runner-up is within noise (section 2). Random Forest is a "
-      "statistically comparable alternative.")
+    w(f"- **Selected supervised model:** {sel} (`{best[sel]['params']}`). The **model and setting** were chosen by mean CV PR-AUC "
+      f"(threshold-independent). The **decision threshold {meta['thresholds'][sel]:.3f}** was chosen separately, as the F1-maximising "
+      "threshold on development out-of-fold predictions (section 3a). Its margin over the runner-up is within noise (section 2), "
+      "so Random Forest is a statistically comparable alternative.")
     w(f"- **Artifacts** (`ml_service/artifacts/{meta['run_id']}/`, git-ignored, reproducible): `reference_stats.joblib` (fitted "
       "preprocessing statistics), `provider_<Model>.joblib` for all three models plus `provider_volume_baseline.joblib`, "
       "`isolation_forest.joblib` (per claim type), `isolation_forest_global.joblib` (diagnostic), `metadata.json`, "

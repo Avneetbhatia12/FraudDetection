@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from fraud_ml import artifacts  # noqa: E402
 from fraud_ml.config import REPORTS_DIR  # noqa: E402
 from fraud_ml.cv import dev_test_providers, labels_for  # noqa: E402
-from fraud_ml.metrics import bootstrap_ci, classification_metrics  # noqa: E402
+from fraud_ml.metrics import bootstrap_ci, classification_metrics, threshold_max_f1  # noqa: E402
 from fraud_ml.models import MODEL_NAMES  # noqa: E402
 from fraud_ml.pipeline import prepare  # noqa: E402
 from fraud_ml.predict import Predictor  # noqa: E402
@@ -128,8 +128,24 @@ def main() -> None:
         print(f"  {name:<18} test PR-AUC {results[name]['pr_auc']:.4f} {results[name]['pr_auc_95ci']} | ROC-AUC {results[name]['roc_auc']:.4f} "
               f"| P {results[name]['precision']:.3f} R {results[name]['recall']:.3f} F1 {results[name]['f1']:.3f}")
 
-    # Size-group analysis on out-of-fold development predictions (larger sample than test)
+    # Threshold selection record (development out-of-fold predictions only; the test set is not involved)
     oof = pd.read_csv(artifacts.run_dir(run_id) / "oof_predictions.csv", dtype={"Provider": "string"})
+    assert set(oof["Provider"]) <= set(dev) and not set(oof["Provider"]) & set(test), "OOF must be development-only"
+    sel = meta["selected_model"]
+    chosen = {n: classification_metrics(oof["y"], oof[f"p_{n}"], meta["thresholds"][n]) for n in MODEL_NAMES}
+    for n in MODEL_NAMES:
+        assert abs(threshold_max_f1(oof["y"], oof[f"p_{n}"]) - meta["thresholds"][n]) < 1e-9, f"{n} threshold not reproducible"
+    grid = sorted({0.3, 0.4, 0.5, 0.6, 0.7, 0.8, round(meta["thresholds"][sel], 4)})
+    sens = []
+    for g in grid:
+        m = classification_metrics(oof["y"], oof[f"p_{sel}"], g)
+        sens.append({k: m[k] for k in ("threshold", "precision", "recall", "f1", "flagged")} | {"chosen": g == round(meta["thresholds"][sel], 4)})
+    threshold_selection = {"rule": "model/setting: max mean CV PR-AUC; threshold: max F1 on pooled development out-of-fold predictions",
+                           "n_oof_providers": int(len(oof)),
+                           "chosen": {n: {k: chosen[n][k] for k in ("threshold", "precision", "recall", "f1")} for n in MODEL_NAMES},
+                           "sensitivity_selected": sens}
+
+    # Size-group analysis on out-of-fold development predictions (larger sample than test)
     oof["size_group"] = size_groups(n_claims.loc[oof["Provider"]].to_numpy(), cuts)
     for name in MODEL_NAMES + ["volume_baseline"]:
         results[name]["by_size_oof"] = by_size(oof, f"p_{name}", meta["thresholds"][name])
@@ -138,7 +154,7 @@ def main() -> None:
     iso_res = {variant: {str(pct): if_analysis(prep, pred, variant, pct, dev, test, cuts) for pct in IF_PERCENTILES}
                for variant in ("isolation_forest", "isolation_forest_global")}
 
-    out = {"run_id": run_id, "size_band_cuts_n_claims": [float(c) for c in cuts], "supervised_test": results,
+    out = {"run_id": run_id, "size_band_cuts_n_claims": [float(c) for c in cuts], "threshold_selection": threshold_selection, "supervised_test": results,
            "isolation_forest": iso_res, "label_caveat": meta["label_caveat"], "task": meta["task"]}
     artifacts.save_json(run_id, "test_results", out)
     REPORTS_DIR.mkdir(exist_ok=True)
