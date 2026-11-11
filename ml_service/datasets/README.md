@@ -6,14 +6,19 @@ integration tests need them in MySQL, they go into a separate schema, never the 
 
 ## Dataset registry
 
-| Dataset | Kind | Real data? | Source | Rows (claims) | Label |
+| Dataset | Kind | Used for | Source | Size | Label |
 |---|---|---|---|---|---|
-| `synthetic_v1/` | **Synthetic** | No | `training/generate_synthetic.py`, seed 42, v1.0.0 | 13,600 (7.95% fraud) | `IS_FRAUD`, `FRAUD_PATTERN` |
+| `public_kaggle_provider_fraud/` | **Public** | **Model training and evaluation** | [Kaggle: rohitrox/healthcare-provider-fraud-detection-analysis](https://www.kaggle.com/datasets/rohitrox/healthcare-provider-fraud-detection-analysis), CC0 as declared by the uploader | 5,410 labelled providers; 558,211 labelled-set claims | `PotentialFraud`, **per provider**, provenance undocumented |
+| `synthetic_v1/` | **Synthetic** | **Pipeline testing only.** Never used to train, select or report models. | `training/generate_synthetic.py`, seed 42, v1.0.0 | 13,600 claims | Generated (`IS_FRAUD`), **not real labels** |
 
-**Public datasets:** none adopted yet. If one is added, record it here with its source URL,
-licence (check it before use), download date, any transformation applied, and how its columns
-map to ours. Keep it in its own folder (e.g. `public_<name>/`) with a `manifest.json` whose
-`kind` is `"public"`.
+**`public_kaggle_provider_fraud`:** see its `manifest.json` (source, licence note, checksums)
+and [reports/dataset_exploration_kaggle.md](../reports/dataset_exploration_kaggle.md). Fetch and
+verify the raw files with `scripts/download_kaggle_provider_fraud.py`. The `raw/` folder is
+git-ignored. The labels apply to providers only, and their provenance is not documented, so they
+must not be copied onto individual claims or described as confirmed fraud.
+
+To add another public dataset, give it its own folder (`public_<name>/`) with a `manifest.json`
+recording the source URL, licence, download date and checksums, and a `kind` of `"public"`.
 
 **Real application data:** never copied here. Models are scored on live claims through
 the ML service. Investigator outcomes (`CLAIM_INVESTIGATION_OUTCOME`) become real labels

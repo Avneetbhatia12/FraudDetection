@@ -47,6 +47,8 @@ ml_service/artifacts/*
 !ml_service/artifacts/.gitkeep
 # Generated data: reproducible from training/generate_synthetic.py (seed in manifest.json)
 ml_service/datasets/**/*.csv
+# Downloaded public datasets: raw archives/files are fetched by a script, never committed
+ml_service/datasets/**/raw/
 
 # ── Misc ────────────────────────────────────────────────────
 *.pem
