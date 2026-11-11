@@ -1,0 +1,33 @@
+{
+  "dataset": "public_kaggle_provider_fraud",
+  "kind": "public",
+  "contains_real_data": "Pseudonymous Medicare-style claims; origin not documented by the uploader",
+  "title": "HEALTHCARE PROVIDER FRAUD DETECTION ANALYSIS",
+  "source_url": "https://www.kaggle.com/datasets/rohitrox/healthcare-provider-fraud-detection-analysis",
+  "kaggle_ref": "rohitrox/healthcare-provider-fraud-detection-analysis",
+  "creator": "Rohit Anand Gupta",
+  "license_declared": "CC0: Public Domain",
+  "license_note": "Declared by the uploader on Kaggle; the upstream origin of the data is not documented, so the right to release it as CC0 cannot be independently confirmed.",
+  "kaggle_version": 1,
+  "kaggle_last_updated": "2019-05-09",
+  "downloaded_on": "2026-11-11",
+  "download_method": "Kaggle public API, no credentials (scripts/download_kaggle_provider_fraud.py)",
+  "label": {
+    "column": "PotentialFraud",
+    "file": "Train-1542865627584.csv",
+    "unit": "provider",
+    "provenance": "Undocumented. Not independently verified fraud findings or convictions.",
+    "claim_level_labels": false
+  },
+  "raw_files_sha256": {
+    "Train-1542865627584.csv": "09315a0e0c262ddfb91df15df76b196a80de2ff1001fad46b362b562df2e7e43",
+    "Train_Beneficiarydata-1542865627584.csv": "1fb7fb14efeaae04b970bfeb3176cdf938c755748217377109081d6dae01ecfd",
+    "Train_Inpatientdata-1542865627584.csv": "395bc2d01a102bf44a26ba4b36c63e7086943eaf2d5d1489c776bf47d1613ac0",
+    "Train_Outpatientdata-1542865627584.csv": "f532ed7e25f50d6abf3ba89ceeb2a23e2a352792f90d086b13999a561fd23889",
+    "Test-1542969243754.csv": "c85d53b930403c0f2da500a6e5e461546678ca1bc1e58072c25cb1505ddd584d",
+    "Test_Beneficiarydata-1542969243754.csv": "d2041dc6d1092db935b9b58a508199d0e3811566686997d12d457a225fba9995",
+    "Test_Inpatientdata-1542969243754.csv": "cd231bf571eec6c22d974d28400870c38c244c42f5c7f9e43ff2bb8727b8a4d9",
+    "Test_Outpatientdata-1542969243754.csv": "74524e2a587f5fe372c1aad6675d3e66c04c9e95c159e05df0a4204c6840d2ed"
+  },
+  "exploration_report": "reports/dataset_exploration_kaggle.md"
+}

@@ -1,0 +1,1496 @@
+{
+  "metadata": {
+    "run_id": "run-20261111-102008",
+    "git_commit": "acd0a2325553bc2b342388fa393c736af1785019",
+    "split": {
+      "seed": 42,
+      "test_size": 0.15,
+      "n_folds": 5,
+      "n_dev": 4598,
+      "n_test": 812
+    },
+    "selected_model": "XGBoost",
+    "thresholds": {
+      "LogisticRegression": 0.7966119708642355,
+      "RandomForest": 0.4652220010025889,
+      "XGBoost": 0.6426740884780884,
+      "volume_baseline": 0.7010517716407776
+    },
+    "versions": {
+      "python": "3.12.10",
+      "scikit-learn": "1.5.2",
+      "xgboost": "2.1.3",
+      "pandas": "2.2.3",
+      "numpy": "2.0.2"
+    }
+  },
+  "cv": {
+    "LogisticRegression": {
+      "params": {
+        "C": 0.1
+      },
+      "pr_auc_folds": [
+        0.7399,
+        0.6986,
+        0.6741,
+        0.7294,
+        0.6617
+      ],
+      "pr_auc_mean": 0.7007,
+      "pr_auc_std": 0.0303,
+      "roc_auc_mean": 0.9455,
+      "roc_auc_std": 0.0044,
+      "threshold": 0.7966119708642355,
+      "oof_metrics": {
+        "n": 4598,
+        "positives": 430,
+        "threshold": 0.7966,
+        "accuracy": 0.9313,
+        "precision": 0.6145,
+        "recall": 0.7116,
+        "f1": 0.6595,
+        "roc_auc": 0.9452,
+        "pr_auc": 0.694,
+        "confusion_matrix": {
+          "tn": 3976,
+          "fp": 192,
+          "fn": 124,
+          "tp": 306
+        },
+        "flagged": 498
+      }
+    },
+    "RandomForest": {
+      "params": {
+        "max_depth": null,
+        "min_samples_leaf": 5
+      },
+      "pr_auc_folds": [
+        0.7468,
+        0.7298,
+        0.7205,
+        0.7385,
+        0.6948
+      ],
+      "pr_auc_mean": 0.7261,
+      "pr_auc_std": 0.0179,
+      "roc_auc_mean": 0.9464,
+      "roc_auc_std": 0.0108,
+      "threshold": 0.4652220010025889,
+      "oof_metrics": {
+        "n": 4598,
+        "positives": 430,
+        "threshold": 0.4652,
+        "accuracy": 0.9334,
+        "precision": 0.6144,
+        "recall": 0.7744,
+        "f1": 0.6852,
+        "roc_auc": 0.9457,
+        "pr_auc": 0.7208,
+        "confusion_matrix": {
+          "tn": 3959,
+          "fp": 209,
+          "fn": 97,
+          "tp": 333
+        },
+        "flagged": 542
+      }
+    },
+    "XGBoost": {
+      "params": {
+        "max_depth": 3,
+        "n_estimators": 300
+      },
+      "pr_auc_folds": [
+        0.7584,
+        0.7433,
+        0.731,
+        0.7429,
+        0.7088
+      ],
+      "pr_auc_mean": 0.7369,
+      "pr_auc_std": 0.0165,
+      "roc_auc_mean": 0.9475,
+      "roc_auc_std": 0.0073,
+      "threshold": 0.6426740884780884,
+      "oof_metrics": {
+        "n": 4598,
+        "positives": 430,
+        "threshold": 0.6427,
+        "accuracy": 0.9361,
+        "precision": 0.6298,
+        "recall": 0.7674,
+        "f1": 0.6918,
+        "roc_auc": 0.9469,
+        "pr_auc": 0.7334,
+        "confusion_matrix": {
+          "tn": 3974,
+          "fp": 194,
+          "fn": 100,
+          "tp": 330
+        },
+        "flagged": 524
+      }
+    },
+    "volume_baseline": {
+      "params": {
+        "max_depth": 3,
+        "n_estimators": 300
+      },
+      "pr_auc_folds": [
+        0.4036,
+        0.4756,
+        0.4298,
+        0.4404,
+        0.4321
+      ],
+      "pr_auc_mean": 0.4363,
+      "pr_auc_std": 0.0232,
+      "roc_auc_mean": 0.8209,
+      "roc_auc_std": 0.0125,
+      "threshold": 0.7010517716407776,
+      "oof_metrics": {
+        "n": 4598,
+        "positives": 430,
+        "threshold": 0.7011,
+        "accuracy": 0.876,
+        "precision": 0.3718,
+        "recall": 0.4721,
+        "f1": 0.416,
+        "roc_auc": 0.8202,
+        "pr_auc": 0.4292,
+        "confusion_matrix": {
+          "tn": 3825,
+          "fp": 343,
+          "fn": 227,
+          "tp": 203
+        },
+        "flagged": 546
+      },
+      "model_class": "XGBoost",
+      "features": [
+        "log_n_claims",
+        "log_n_patients",
+        "log_n_attending",
+        "active_months",
+        "claims_per_active_month"
+      ]
+    }
+  },
+  "ablation": {
+    "model": "XGBoost",
+    "params": {
+      "max_depth": 3,
+      "n_estimators": 300
+    },
+    "group_only": {
+      "Volume-only baseline": {
+        "n_features": 5,
+        "pr_auc_mean": 0.4363,
+        "pr_auc_std": 0.0232,
+        "roc_auc_mean": 0.8209,
+        "roc_auc_std": 0.0125,
+        "oof_precision": 0.3718,
+        "oof_recall": 0.4721,
+        "oof_f1": 0.416,
+        "features": [
+          "log_n_claims",
+          "log_n_patients",
+          "log_n_attending",
+          "active_months",
+          "claims_per_active_month"
+        ]
+      },
+      "Volume + amounts": {
+        "n_features": 20,
+        "pr_auc_mean": 0.6769,
+        "pr_auc_std": 0.0125,
+        "roc_auc_mean": 0.9294,
+        "roc_auc_std": 0.0128,
+        "oof_precision": 0.6018,
+        "oof_recall": 0.6256,
+        "oof_f1": 0.6135,
+        "features": [
+          "log_n_claims",
+          "share_inpatient",
+          "log_n_patients",
+          "claims_per_patient",
+          "log_n_attending",
+          "claims_per_attending",
+          "active_months",
+          "claims_per_active_month",
+          "ip_log_amt_mean",
+          "ip_log_amt_median",
+          "ip_log_amt_max",
+          "ip_log_amt_std",
+          "op_log_amt_mean",
+          "op_log_amt_median",
+          "op_log_amt_max",
+          "op_log_amt_std",
+          "log_total_reimbursed",
+          "log_amount_per_patient",
+          "share_zero_amount",
+          "op_log_deductible_mean"
+        ]
+      },
+      "Patient history": {
+        "n_features": 12,
+        "pr_auc_mean": 0.5792,
+        "pr_auc_std": 0.0287,
+        "roc_auc_mean": 0.9042,
+        "roc_auc_std": 0.0066,
+        "oof_precision": 0.5097,
+        "oof_recall": 0.6093,
+        "oof_f1": 0.5551,
+        "features": [
+          "claim_days_mean",
+          "share_same_day_repeat",
+          "share_near_duplicate",
+          "median_days_between_patient_claims",
+          "share_patients_3plus_claims",
+          "patient_chronic_mean",
+          "patient_share_renal",
+          "patient_share_partial_coverage",
+          "patient_share_deceased",
+          "patient_log_ip_annual_mean",
+          "patient_log_op_annual_mean",
+          "log_n_states_served"
+        ]
+      },
+      "Diagnosis & procedure": {
+        "n_features": 13,
+        "pr_auc_mean": 0.7053,
+        "pr_auc_std": 0.0282,
+        "roc_auc_mean": 0.9399,
+        "roc_auc_std": 0.0094,
+        "oof_precision": 0.6123,
+        "oof_recall": 0.7163,
+        "oof_f1": 0.6602,
+        "features": [
+          "diag_per_claim",
+          "distinct_primary_dx_per_claim",
+          "op_share_admit_dx",
+          "op_share_operating",
+          "share_other_physician",
+          "ip_los_mean",
+          "ip_los_max",
+          "ip_share_operating",
+          "ip_proc_per_claim",
+          "ip_distinct_drg_per_claim",
+          "share_rare_primary_dx",
+          "mean_log_amount_vs_dx_ref",
+          "ip_mean_log_amount_vs_drg_ref"
+        ]
+      },
+      "Provider/physician network": {
+        "n_features": 2,
+        "pr_auc_mean": 0.2025,
+        "pr_auc_std": 0.0315,
+        "roc_auc_mean": 0.697,
+        "roc_auc_std": 0.0279,
+        "oof_precision": 0.21,
+        "oof_recall": 0.3419,
+        "oof_f1": 0.2602,
+        "features": [
+          "patient_mean_other_providers",
+          "attending_mean_other_providers"
+        ]
+      },
+      "All approved features": {
+        "n_features": 47,
+        "pr_auc_mean": 0.7369,
+        "pr_auc_std": 0.0165,
+        "roc_auc_mean": 0.9475,
+        "roc_auc_std": 0.0073,
+        "oof_precision": 0.6298,
+        "oof_recall": 0.7674,
+        "oof_f1": 0.6918,
+        "features": [
+          "log_n_claims",
+          "share_inpatient",
+          "log_n_patients",
+          "claims_per_patient",
+          "log_n_attending",
+          "claims_per_attending",
+          "active_months",
+          "claims_per_active_month",
+          "ip_log_amt_mean",
+          "ip_log_amt_median",
+          "ip_log_amt_max",
+          "ip_log_amt_std",
+          "op_log_amt_mean",
+          "op_log_amt_median",
+          "op_log_amt_max",
+          "op_log_amt_std",
+          "log_total_reimbursed",
+          "log_amount_per_patient",
+          "share_zero_amount",
+          "op_log_deductible_mean",
+          "ip_los_mean",
+          "ip_los_max",
+          "ip_share_operating",
+          "ip_proc_per_claim",
+          "ip_distinct_drg_per_claim",
+          "diag_per_claim",
+          "distinct_primary_dx_per_claim",
+          "op_share_admit_dx",
+          "op_share_operating",
+          "share_other_physician",
+          "claim_days_mean",
+          "share_same_day_repeat",
+          "share_near_duplicate",
+          "median_days_between_patient_claims",
+          "share_patients_3plus_claims",
+          "patient_chronic_mean",
+          "patient_share_renal",
+          "patient_share_partial_coverage",
+          "patient_share_deceased",
+          "patient_log_ip_annual_mean",
+          "patient_log_op_annual_mean",
+          "log_n_states_served",
+          "patient_mean_other_providers",
+          "attending_mean_other_providers",
+          "share_rare_primary_dx",
+          "mean_log_amount_vs_dx_ref",
+          "ip_mean_log_amount_vs_drg_ref"
+        ]
+      }
+    },
+    "all_minus_group": {
+      "Volume + amounts": {
+        "n_features": 27,
+        "pr_auc_mean": 0.7214,
+        "pr_auc_std": 0.0116,
+        "roc_auc_mean": 0.947,
+        "roc_auc_std": 0.0064,
+        "oof_precision": 0.6275,
+        "oof_recall": 0.7442,
+        "oof_f1": 0.6809,
+        "features": [
+          "ip_los_mean",
+          "ip_los_max",
+          "ip_share_operating",
+          "ip_proc_per_claim",
+          "ip_distinct_drg_per_claim",
+          "diag_per_claim",
+          "distinct_primary_dx_per_claim",
+          "op_share_admit_dx",
+          "op_share_operating",
+          "share_other_physician",
+          "claim_days_mean",
+          "share_same_day_repeat",
+          "share_near_duplicate",
+          "median_days_between_patient_claims",
+          "share_patients_3plus_claims",
+          "patient_chronic_mean",
+          "patient_share_renal",
+          "patient_share_partial_coverage",
+          "patient_share_deceased",
+          "patient_log_ip_annual_mean",
+          "patient_log_op_annual_mean",
+          "log_n_states_served",
+          "patient_mean_other_providers",
+          "attending_mean_other_providers",
+          "share_rare_primary_dx",
+          "mean_log_amount_vs_dx_ref",
+          "ip_mean_log_amount_vs_drg_ref"
+        ]
+      },
+      "Patient history": {
+        "n_features": 35,
+        "pr_auc_mean": 0.7318,
+        "pr_auc_std": 0.0245,
+        "roc_auc_mean": 0.9458,
+        "roc_auc_std": 0.0103,
+        "oof_precision": 0.619,
+        "oof_recall": 0.7558,
+        "oof_f1": 0.6806,
+        "features": [
+          "log_n_claims",
+          "share_inpatient",
+          "log_n_patients",
+          "claims_per_patient",
+          "log_n_attending",
+          "claims_per_attending",
+          "active_months",
+          "claims_per_active_month",
+          "ip_log_amt_mean",
+          "ip_log_amt_median",
+          "ip_log_amt_max",
+          "ip_log_amt_std",
+          "op_log_amt_mean",
+          "op_log_amt_median",
+          "op_log_amt_max",
+          "op_log_amt_std",
+          "log_total_reimbursed",
+          "log_amount_per_patient",
+          "share_zero_amount",
+          "op_log_deductible_mean",
+          "ip_los_mean",
+          "ip_los_max",
+          "ip_share_operating",
+          "ip_proc_per_claim",
+          "ip_distinct_drg_per_claim",
+          "diag_per_claim",
+          "distinct_primary_dx_per_claim",
+          "op_share_admit_dx",
+          "op_share_operating",
+          "share_other_physician",
+          "patient_mean_other_providers",
+          "attending_mean_other_providers",
+          "share_rare_primary_dx",
+          "mean_log_amount_vs_dx_ref",
+          "ip_mean_log_amount_vs_drg_ref"
+        ]
+      },
+      "Diagnosis & procedure": {
+        "n_features": 34,
+        "pr_auc_mean": 0.6782,
+        "pr_auc_std": 0.0166,
+        "roc_auc_mean": 0.931,
+        "roc_auc_std": 0.0112,
+        "oof_precision": 0.5653,
+        "oof_recall": 0.6744,
+        "oof_f1": 0.6151,
+        "features": [
+          "log_n_claims",
+          "share_inpatient",
+          "log_n_patients",
+          "claims_per_patient",
+          "log_n_attending",
+          "claims_per_attending",
+          "active_months",
+          "claims_per_active_month",
+          "ip_log_amt_mean",
+          "ip_log_amt_median",
+          "ip_log_amt_max",
+          "ip_log_amt_std",
+          "op_log_amt_mean",
+          "op_log_amt_median",
+          "op_log_amt_max",
+          "op_log_amt_std",
+          "log_total_reimbursed",
+          "log_amount_per_patient",
+          "share_zero_amount",
+          "op_log_deductible_mean",
+          "claim_days_mean",
+          "share_same_day_repeat",
+          "share_near_duplicate",
+          "median_days_between_patient_claims",
+          "share_patients_3plus_claims",
+          "patient_chronic_mean",
+          "patient_share_renal",
+          "patient_share_partial_coverage",
+          "patient_share_deceased",
+          "patient_log_ip_annual_mean",
+          "patient_log_op_annual_mean",
+          "log_n_states_served",
+          "patient_mean_other_providers",
+          "attending_mean_other_providers"
+        ]
+      },
+      "Provider/physician network": {
+        "n_features": 45,
+        "pr_auc_mean": 0.7314,
+        "pr_auc_std": 0.0132,
+        "roc_auc_mean": 0.9478,
+        "roc_auc_std": 0.0086,
+        "oof_precision": 0.632,
+        "oof_recall": 0.7349,
+        "oof_f1": 0.6796,
+        "features": [
+          "log_n_claims",
+          "share_inpatient",
+          "log_n_patients",
+          "claims_per_patient",
+          "log_n_attending",
+          "claims_per_attending",
+          "active_months",
+          "claims_per_active_month",
+          "ip_log_amt_mean",
+          "ip_log_amt_median",
+          "ip_log_amt_max",
+          "ip_log_amt_std",
+          "op_log_amt_mean",
+          "op_log_amt_median",
+          "op_log_amt_max",
+          "op_log_amt_std",
+          "log_total_reimbursed",
+          "log_amount_per_patient",
+          "share_zero_amount",
+          "op_log_deductible_mean",
+          "ip_los_mean",
+          "ip_los_max",
+          "ip_share_operating",
+          "ip_proc_per_claim",
+          "ip_distinct_drg_per_claim",
+          "diag_per_claim",
+          "distinct_primary_dx_per_claim",
+          "op_share_admit_dx",
+          "op_share_operating",
+          "share_other_physician",
+          "claim_days_mean",
+          "share_same_day_repeat",
+          "share_near_duplicate",
+          "median_days_between_patient_claims",
+          "share_patients_3plus_claims",
+          "patient_chronic_mean",
+          "patient_share_renal",
+          "patient_share_partial_coverage",
+          "patient_share_deceased",
+          "patient_log_ip_annual_mean",
+          "patient_log_op_annual_mean",
+          "log_n_states_served",
+          "share_rare_primary_dx",
+          "mean_log_amount_vs_dx_ref",
+          "ip_mean_log_amount_vs_drg_ref"
+        ]
+      }
+    }
+  },
+  "test": {
+    "run_id": "run-20261111-102008",
+    "size_band_cuts_n_claims": [
+      10.0,
+      31.0,
+      86.0
+    ],
+    "threshold_selection": {
+      "rule": "model/setting: max mean CV PR-AUC; threshold: max F1 on pooled development out-of-fold predictions",
+      "n_oof_providers": 4598,
+      "chosen": {
+        "LogisticRegression": {
+          "threshold": 0.7966,
+          "precision": 0.6145,
+          "recall": 0.7116,
+          "f1": 0.6595
+        },
+        "RandomForest": {
+          "threshold": 0.4652,
+          "precision": 0.6144,
+          "recall": 0.7744,
+          "f1": 0.6852
+        },
+        "XGBoost": {
+          "threshold": 0.6427,
+          "precision": 0.6298,
+          "recall": 0.7674,
+          "f1": 0.6918
+        }
+      },
+      "sensitivity_selected": [
+        {
+          "threshold": 0.3,
+          "precision": 0.4803,
+          "recall": 0.8791,
+          "f1": 0.6212,
+          "flagged": 787,
+          "chosen": false
+        },
+        {
+          "threshold": 0.4,
+          "precision": 0.5209,
+          "recall": 0.8395,
+          "f1": 0.6429,
+          "flagged": 693,
+          "chosen": false
+        },
+        {
+          "threshold": 0.5,
+          "precision": 0.5625,
+          "recall": 0.8163,
+          "f1": 0.666,
+          "flagged": 624,
+          "chosen": false
+        },
+        {
+          "threshold": 0.6,
+          "precision": 0.605,
+          "recall": 0.7837,
+          "f1": 0.6829,
+          "flagged": 557,
+          "chosen": false
+        },
+        {
+          "threshold": 0.6427,
+          "precision": 0.6291,
+          "recall": 0.7651,
+          "f1": 0.6905,
+          "flagged": 523,
+          "chosen": true
+        },
+        {
+          "threshold": 0.7,
+          "precision": 0.6371,
+          "recall": 0.7186,
+          "f1": 0.6754,
+          "flagged": 485,
+          "chosen": false
+        },
+        {
+          "threshold": 0.8,
+          "precision": 0.6845,
+          "recall": 0.6256,
+          "f1": 0.6537,
+          "flagged": 393,
+          "chosen": false
+        }
+      ]
+    },
+    "supervised_test": {
+      "LogisticRegression": {
+        "n": 812,
+        "positives": 76,
+        "threshold": 0.7966,
+        "accuracy": 0.9347,
+        "precision": 0.6211,
+        "recall": 0.7763,
+        "f1": 0.6901,
+        "roc_auc": 0.9641,
+        "pr_auc": 0.745,
+        "confusion_matrix": {
+          "tn": 700,
+          "fp": 36,
+          "fn": 17,
+          "tp": 59
+        },
+        "flagged": 95,
+        "pr_auc_95ci": [
+          0.6564,
+          0.8352
+        ],
+        "roc_auc_95ci": [
+          0.9492,
+          0.9768
+        ],
+        "by_size_test": {
+          "Q1 (smallest)": {
+            "n": 223,
+            "positives": 2,
+            "pr_auc": 0.1917,
+            "roc_auc": 0.9638,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "base_rate": 0.009
+          },
+          "Q2": {
+            "n": 185,
+            "positives": 4,
+            "pr_auc": 0.4266,
+            "roc_auc": 0.982,
+            "precision": 0.4286,
+            "recall": 0.75,
+            "f1": 0.5455,
+            "base_rate": 0.0216
+          },
+          "Q3": {
+            "n": 180,
+            "positives": 14,
+            "pr_auc": 0.5968,
+            "roc_auc": 0.9286,
+            "precision": 0.4706,
+            "recall": 0.5714,
+            "f1": 0.5161,
+            "base_rate": 0.0778
+          },
+          "Q4 (largest)": {
+            "n": 224,
+            "positives": 56,
+            "pr_auc": 0.8199,
+            "roc_auc": 0.9347,
+            "precision": 0.6857,
+            "recall": 0.8571,
+            "f1": 0.7619,
+            "base_rate": 0.25
+          }
+        },
+        "by_size_oof": {
+          "Q1 (smallest)": {
+            "n": 1212,
+            "positives": 14,
+            "pr_auc": 0.2308,
+            "roc_auc": 0.8604,
+            "precision": 0.2857,
+            "recall": 0.1429,
+            "f1": 0.1905,
+            "base_rate": 0.0116
+          },
+          "Q2": {
+            "n": 1109,
+            "positives": 46,
+            "pr_auc": 0.3778,
+            "roc_auc": 0.9217,
+            "precision": 0.413,
+            "recall": 0.413,
+            "f1": 0.413,
+            "base_rate": 0.0415
+          },
+          "Q3": {
+            "n": 1133,
+            "positives": 86,
+            "pr_auc": 0.5514,
+            "roc_auc": 0.9133,
+            "precision": 0.5714,
+            "recall": 0.6047,
+            "f1": 0.5876,
+            "base_rate": 0.0759
+          },
+          "Q4 (largest)": {
+            "n": 1144,
+            "positives": 284,
+            "pr_auc": 0.7813,
+            "roc_auc": 0.9192,
+            "precision": 0.6582,
+            "recall": 0.8204,
+            "f1": 0.7304,
+            "base_rate": 0.2483
+          }
+        }
+      },
+      "RandomForest": {
+        "n": 812,
+        "positives": 76,
+        "threshold": 0.4652,
+        "accuracy": 0.9384,
+        "precision": 0.6354,
+        "recall": 0.8026,
+        "f1": 0.7093,
+        "roc_auc": 0.9694,
+        "pr_auc": 0.7802,
+        "confusion_matrix": {
+          "tn": 701,
+          "fp": 35,
+          "fn": 15,
+          "tp": 61
+        },
+        "flagged": 96,
+        "pr_auc_95ci": [
+          0.6958,
+          0.8601
+        ],
+        "roc_auc_95ci": [
+          0.9557,
+          0.9812
+        ],
+        "by_size_test": {
+          "Q1 (smallest)": {
+            "n": 223,
+            "positives": 2,
+            "pr_auc": 0.75,
+            "roc_auc": 0.9955,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "base_rate": 0.009
+          },
+          "Q2": {
+            "n": 185,
+            "positives": 4,
+            "pr_auc": 0.7333,
+            "roc_auc": 0.9931,
+            "precision": 0.6667,
+            "recall": 1.0,
+            "f1": 0.8,
+            "base_rate": 0.0216
+          },
+          "Q3": {
+            "n": 180,
+            "positives": 14,
+            "pr_auc": 0.5246,
+            "roc_auc": 0.9243,
+            "precision": 0.3684,
+            "recall": 0.5,
+            "f1": 0.4242,
+            "base_rate": 0.0778
+          },
+          "Q4 (largest)": {
+            "n": 224,
+            "positives": 56,
+            "pr_auc": 0.8471,
+            "roc_auc": 0.9429,
+            "precision": 0.7,
+            "recall": 0.875,
+            "f1": 0.7778,
+            "base_rate": 0.25
+          }
+        },
+        "by_size_oof": {
+          "Q1 (smallest)": {
+            "n": 1212,
+            "positives": 14,
+            "pr_auc": 0.3735,
+            "roc_auc": 0.8642,
+            "precision": 0.8,
+            "recall": 0.2857,
+            "f1": 0.4211,
+            "base_rate": 0.0116
+          },
+          "Q2": {
+            "n": 1109,
+            "positives": 46,
+            "pr_auc": 0.5184,
+            "roc_auc": 0.9207,
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "base_rate": 0.0415
+          },
+          "Q3": {
+            "n": 1133,
+            "positives": 86,
+            "pr_auc": 0.5942,
+            "roc_auc": 0.915,
+            "precision": 0.5888,
+            "recall": 0.7326,
+            "f1": 0.6528,
+            "base_rate": 0.0759
+          },
+          "Q4 (largest)": {
+            "n": 1144,
+            "positives": 284,
+            "pr_auc": 0.7973,
+            "roc_auc": 0.9157,
+            "precision": 0.6328,
+            "recall": 0.8556,
+            "f1": 0.7275,
+            "base_rate": 0.2483
+          }
+        }
+      },
+      "XGBoost": {
+        "n": 812,
+        "positives": 76,
+        "threshold": 0.6427,
+        "accuracy": 0.9421,
+        "precision": 0.6593,
+        "recall": 0.7895,
+        "f1": 0.7186,
+        "roc_auc": 0.9715,
+        "pr_auc": 0.808,
+        "confusion_matrix": {
+          "tn": 705,
+          "fp": 31,
+          "fn": 16,
+          "tp": 60
+        },
+        "flagged": 91,
+        "pr_auc_95ci": [
+          0.7301,
+          0.8817
+        ],
+        "roc_auc_95ci": [
+          0.959,
+          0.9828
+        ],
+        "by_size_test": {
+          "Q1 (smallest)": {
+            "n": 223,
+            "positives": 2,
+            "pr_auc": 0.75,
+            "roc_auc": 0.9955,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "base_rate": 0.009
+          },
+          "Q2": {
+            "n": 185,
+            "positives": 4,
+            "pr_auc": 0.8542,
+            "roc_auc": 0.9959,
+            "precision": 0.6,
+            "recall": 0.75,
+            "f1": 0.6667,
+            "base_rate": 0.0216
+          },
+          "Q3": {
+            "n": 180,
+            "positives": 14,
+            "pr_auc": 0.5463,
+            "roc_auc": 0.9217,
+            "precision": 0.3684,
+            "recall": 0.5,
+            "f1": 0.4242,
+            "base_rate": 0.0778
+          },
+          "Q4 (largest)": {
+            "n": 224,
+            "positives": 56,
+            "pr_auc": 0.8765,
+            "roc_auc": 0.9501,
+            "precision": 0.7424,
+            "recall": 0.875,
+            "f1": 0.8033,
+            "base_rate": 0.25
+          }
+        },
+        "by_size_oof": {
+          "Q1 (smallest)": {
+            "n": 1212,
+            "positives": 14,
+            "pr_auc": 0.5169,
+            "roc_auc": 0.8672,
+            "precision": 0.6,
+            "recall": 0.4286,
+            "f1": 0.5,
+            "base_rate": 0.0116
+          },
+          "Q2": {
+            "n": 1109,
+            "positives": 46,
+            "pr_auc": 0.553,
+            "roc_auc": 0.9279,
+            "precision": 0.5814,
+            "recall": 0.5435,
+            "f1": 0.5618,
+            "base_rate": 0.0415
+          },
+          "Q3": {
+            "n": 1133,
+            "positives": 86,
+            "pr_auc": 0.5724,
+            "roc_auc": 0.9076,
+            "precision": 0.5825,
+            "recall": 0.6977,
+            "f1": 0.6349,
+            "base_rate": 0.0759
+          },
+          "Q4 (largest)": {
+            "n": 1144,
+            "positives": 284,
+            "pr_auc": 0.8089,
+            "roc_auc": 0.9185,
+            "precision": 0.6495,
+            "recall": 0.8415,
+            "f1": 0.7331,
+            "base_rate": 0.2483
+          }
+        }
+      },
+      "volume_baseline": {
+        "n": 812,
+        "positives": 76,
+        "threshold": 0.7011,
+        "accuracy": 0.8658,
+        "precision": 0.359,
+        "recall": 0.5526,
+        "f1": 0.4352,
+        "roc_auc": 0.847,
+        "pr_auc": 0.4928,
+        "confusion_matrix": {
+          "tn": 661,
+          "fp": 75,
+          "fn": 34,
+          "tp": 42
+        },
+        "flagged": 117,
+        "pr_auc_95ci": [
+          0.397,
+          0.5943
+        ],
+        "roc_auc_95ci": [
+          0.8041,
+          0.8915
+        ],
+        "by_size_test": {
+          "Q1 (smallest)": {
+            "n": 223,
+            "positives": 2,
+            "pr_auc": 0.0176,
+            "roc_auc": 0.5939,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "base_rate": 0.009
+          },
+          "Q2": {
+            "n": 185,
+            "positives": 4,
+            "pr_auc": 0.0698,
+            "roc_auc": 0.6796,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "base_rate": 0.0216
+          },
+          "Q3": {
+            "n": 180,
+            "positives": 14,
+            "pr_auc": 0.113,
+            "roc_auc": 0.6067,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "base_rate": 0.0778
+          },
+          "Q4 (largest)": {
+            "n": 224,
+            "positives": 56,
+            "pr_auc": 0.6023,
+            "roc_auc": 0.7406,
+            "precision": 0.375,
+            "recall": 0.75,
+            "f1": 0.5,
+            "base_rate": 0.25
+          }
+        },
+        "by_size_oof": {
+          "Q1 (smallest)": {
+            "n": 1212,
+            "positives": 14,
+            "pr_auc": 0.0124,
+            "roc_auc": 0.4837,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "base_rate": 0.0116
+          },
+          "Q2": {
+            "n": 1109,
+            "positives": 46,
+            "pr_auc": 0.074,
+            "roc_auc": 0.6048,
+            "precision": 0.3333,
+            "recall": 0.0217,
+            "f1": 0.0408,
+            "base_rate": 0.0415
+          },
+          "Q3": {
+            "n": 1133,
+            "positives": 86,
+            "pr_auc": 0.1269,
+            "roc_auc": 0.6723,
+            "precision": 0.2381,
+            "recall": 0.0581,
+            "f1": 0.0935,
+            "base_rate": 0.0759
+          },
+          "Q4 (largest)": {
+            "n": 1144,
+            "positives": 284,
+            "pr_auc": 0.5559,
+            "roc_auc": 0.7381,
+            "precision": 0.3781,
+            "recall": 0.6937,
+            "f1": 0.4894,
+            "base_rate": 0.2483
+          }
+        }
+      }
+    },
+    "isolation_forest": {
+      "isolation_forest": {
+        "90.0": {
+          "thresholds": {
+            "0": 0.53594,
+            "1": 0.52085
+          },
+          "share_claims_flagged_all": 0.1005,
+          "share_of_flagged_that_are_inpatient": 0.0718,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.1006,
+            "inpatient": 0.0995
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.0263,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.1024,
+            "Yes": 0.1034
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0952,
+            "Yes": 0.1042
+          },
+          "test_anomaly_rate_roc_auc": 0.568,
+          "test_anomaly_rate_pr_auc": 0.0971,
+          "test_mannwhitney_p": 0.04968909759584826,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 0.125,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.643
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.1371,
+              "median_rate_no": 0.0833,
+              "roc_auc": 0.6237
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.1053,
+              "median_rate_no": 0.0976,
+              "roc_auc": 0.5173
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.1004,
+              "median_rate_no": 0.1,
+              "roc_auc": 0.5139
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6712,
+              "test_roc_auc": 0.9283
+            }
+          }
+        },
+        "95.0": {
+          "thresholds": {
+            "0": 0.55991,
+            "1": 0.55335
+          },
+          "share_claims_flagged_all": 0.0503,
+          "share_of_flagged_that_are_inpatient": 0.0717,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.0503,
+            "inpatient": 0.0497
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.0176,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.0514,
+            "Yes": 0.0515
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0377,
+            "Yes": 0.0508
+          },
+          "test_anomaly_rate_roc_auc": 0.6193,
+          "test_anomaly_rate_pr_auc": 0.11,
+          "test_mannwhitney_p": 0.00047151749899132305,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 0.1111,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.6825
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.0556,
+              "median_rate_no": 0.04,
+              "roc_auc": 0.5815
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.0541,
+              "median_rate_no": 0.0476,
+              "roc_auc": 0.53
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.0502,
+              "median_rate_no": 0.0492,
+              "roc_auc": 0.5191
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6717,
+              "test_roc_auc": 0.9285
+            }
+          }
+        },
+        "99.0": {
+          "thresholds": {
+            "0": 0.60056,
+            "1": 0.6079
+          },
+          "share_claims_flagged_all": 0.0101,
+          "share_of_flagged_that_are_inpatient": 0.0716,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.0101,
+            "inpatient": 0.01
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.0178,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.0105,
+            "Yes": 0.0103
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0,
+            "Yes": 0.008
+          },
+          "test_anomaly_rate_roc_auc": 0.6643,
+          "test_anomaly_rate_pr_auc": 0.1401,
+          "test_mannwhitney_p": 6.431197143509847e-08,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 0.0,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.5766
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.0,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.5546
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.0,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.5014
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.0095,
+              "median_rate_no": 0.009,
+              "roc_auc": 0.5257
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6716,
+              "test_roc_auc": 0.9286
+            }
+          }
+        }
+      },
+      "isolation_forest_global": {
+        "90.0": {
+          "thresholds": {
+            "all": 0.54433
+          },
+          "share_claims_flagged_all": 0.0989,
+          "share_of_flagged_that_are_inpatient": 0.7292,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.0289,
+            "inpatient": 0.9941
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.986,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.0737,
+            "Yes": 0.1189
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0351,
+            "Yes": 0.2269
+          },
+          "test_anomaly_rate_roc_auc": 0.7662,
+          "test_anomaly_rate_pr_auc": 0.1904,
+          "test_mannwhitney_p": 9.035568301360048e-15,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 1.0,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.7976
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.8004,
+              "median_rate_no": 0.0435,
+              "roc_auc": 0.8951
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.417,
+              "median_rate_no": 0.0484,
+              "roc_auc": 0.8937
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.1514,
+              "median_rate_no": 0.037,
+              "roc_auc": 0.7914
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6713,
+              "test_roc_auc": 0.9272
+            }
+          }
+        },
+        "95.0": {
+          "thresholds": {
+            "all": 0.59003
+          },
+          "share_claims_flagged_all": 0.0493,
+          "share_of_flagged_that_are_inpatient": 0.9497,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.0027,
+            "inpatient": 0.6452
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.9314,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.0325,
+            "Yes": 0.0629
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0,
+            "Yes": 0.163
+          },
+          "test_anomaly_rate_roc_auc": 0.8103,
+          "test_anomaly_rate_pr_auc": 0.2141,
+          "test_mannwhitney_p": 3.278761147215958e-22,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 0.5857,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8142
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.4808,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8873
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.25,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8908
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.0876,
+              "median_rate_no": 0.0055,
+              "roc_auc": 0.8003
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6718,
+              "test_roc_auc": 0.9284
+            }
+          }
+        },
+        "99.0": {
+          "thresholds": {
+            "all": 0.65007
+          },
+          "share_claims_flagged_all": 0.0098,
+          "share_of_flagged_that_are_inpatient": 0.9987,
+          "flag_rate_by_claim_type": {
+            "outpatient": 0.0,
+            "inpatient": 0.135
+          },
+          "corr_anomaly_rate_vs_share_inpatient": 0.5562,
+          "test_claims_flagged_share_by_provider_label": {
+            "No": 0.0064,
+            "Yes": 0.0121
+          },
+          "test_provider_anomaly_rate_median_by_label": {
+            "No": 0.0,
+            "Yes": 0.0318
+          },
+          "test_anomaly_rate_roc_auc": 0.8113,
+          "test_anomaly_rate_pr_auc": 0.2473,
+          "test_mannwhitney_p": 1.296146280789729e-32,
+          "within_size_band_all_providers": {
+            "Q1 (smallest)": {
+              "n": 1435,
+              "positives": 16,
+              "median_rate_yes": 0.1458,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8513
+            },
+            "Q2": {
+              "n": 1294,
+              "positives": 50,
+              "median_rate_yes": 0.0976,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8802
+            },
+            "Q3": {
+              "n": 1313,
+              "positives": 100,
+              "median_rate_yes": 0.0517,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.8589
+            },
+            "Q4 (largest)": {
+              "n": 1368,
+              "positives": 340,
+              "median_rate_yes": 0.0171,
+              "median_rate_no": 0.0,
+              "roc_auc": 0.7936
+            }
+          },
+          "incremental_test": {
+            "volume": {
+              "test_pr_auc": 0.4786,
+              "test_roc_auc": 0.837
+            },
+            "volume_plus_share_inpatient": {
+              "test_pr_auc": 0.6701,
+              "test_roc_auc": 0.9277
+            },
+            "volume_plus_share_inpatient_plus_anomaly_rate": {
+              "test_pr_auc": 0.6705,
+              "test_roc_auc": 0.9288
+            }
+          }
+        }
+      }
+    },
+    "label_caveat": "PotentialFraud is a provider-level label of undocumented provenance; not verified fraud and not a claim-level label.",
+    "task": "Provider-level risk at the end of the observation period (not real-time claim-level fraud detection)."
+  }
+}

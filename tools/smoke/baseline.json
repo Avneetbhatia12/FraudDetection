@@ -1,0 +1,513 @@
+{
+  "recordedAt": "2026-11-11T09:05:57.838Z",
+  "results": {
+    "POST /auth/login": {
+      "status": 200,
+      "shape": {
+        "success": "boolean",
+        "token": "string",
+        "user": {
+          "department": "string",
+          "email": "string",
+          "fullName": "string",
+          "id": "number",
+          "role": "string",
+          "username": "string"
+        }
+      },
+      "lengths": {}
+    },
+    "GET /health": {
+      "status": 200,
+      "shape": {
+        "status": "string",
+        "timestamp": "string"
+      },
+      "lengths": {}
+    },
+    "GET /dashboard/stats": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "approved": "string",
+          "pending": "string",
+          "recent_claims": {
+            "array": {
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_DATE": "string",
+              "CLAIM_ID": "number",
+              "DIAGNOSIS": "string",
+              "PATIENT_NAME": "string",
+              "PROVIDER_NAME": "string",
+              "STATUS": "string",
+              "flag_count": "number"
+            }
+          },
+          "rejected": "string",
+          "risk_distribution": {
+            "high": "string",
+            "low": "string",
+            "medium": "string"
+          },
+          "top_flagged_providers": {
+            "array": {
+              "PROVIDER_NAME": "string",
+              "PROVIDER_TYPE": "string",
+              "claim_count": "number",
+              "flag_count": "number"
+            }
+          },
+          "total_amount": "string",
+          "total_claims": "number",
+          "total_flags": "number",
+          "total_patients": "number",
+          "total_providers": "number",
+          "trend": {
+            "array": "empty"
+          },
+          "under_review": "string"
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.trend": 0,
+        "data.top_flagged_providers": 3,
+        "data.recent_claims": 10
+      }
+    },
+    "GET /claims?limit=5": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "APPROVED_AMOUNT": "string",
+            "CLAIM_AMOUNT": "string",
+            "CLAIM_DATE": "string",
+            "CLAIM_ID": "number",
+            "DIAGNOSIS": "string",
+            "PATIENT_NAME": "string",
+            "POLICY_ID": "number",
+            "POLICY_TYPE": "string",
+            "PROVIDER_ID": "number",
+            "PROVIDER_NAME": "string",
+            "PROVIDER_TYPE": "string",
+            "STATUS": "string",
+            "flag_count": "number",
+            "rule_count": "number"
+          }
+        },
+        "limit": "number",
+        "page": "number",
+        "success": "boolean",
+        "total": "number"
+      },
+      "lengths": {
+        "data": 5
+      }
+    },
+    "GET /claims/1": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "APPROVED_AMOUNT": "string",
+          "CLAIM_AMOUNT": "string",
+          "CLAIM_DATE": "string",
+          "CLAIM_ID": "number",
+          "CONTACT_NUMBER": "string",
+          "COVERAGE_AMOUNT": "string",
+          "DIAGNOSIS": "string",
+          "PATIENT_EMAIL": "string",
+          "PATIENT_NAME": "string",
+          "POLICY_ID": "number",
+          "POLICY_TYPE": "string",
+          "PROVIDER_ID": "number",
+          "PROVIDER_NAME": "string",
+          "PROVIDER_TYPE": "string",
+          "STATUS": "string",
+          "fraud_flags": {
+            "array": "empty"
+          },
+          "triggered_rules": {
+            "array": "empty"
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.fraud_flags": 0,
+        "data.triggered_rules": 0
+      }
+    },
+    "GET /patients?limit=5": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "ADDRESS": "string",
+            "DOB": "string",
+            "EMAIL": "string",
+            "FIRST_NAME": "string",
+            "GENDER": "string",
+            "LAST_NAME": "string",
+            "PATIENT_ID": "number",
+            "claim_count": "number",
+            "policy_count": "number"
+          }
+        },
+        "limit": "number",
+        "page": "number",
+        "success": "boolean",
+        "total": "number"
+      },
+      "lengths": {
+        "data": 5
+      }
+    },
+    "GET /patients/1": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "ADDRESS": "string",
+          "DOB": "string",
+          "EMAIL": "string",
+          "FIRST_NAME": "string",
+          "GENDER": "string",
+          "LAST_NAME": "string",
+          "PATIENT_ID": "number",
+          "claims": {
+            "array": {
+              "APPROVED_AMOUNT": "string",
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_DATE": "string",
+              "CLAIM_ID": "number",
+              "DIAGNOSIS": "string",
+              "POLICY_ID": "number",
+              "PROVIDER_ID": "number",
+              "PROVIDER_NAME": "string",
+              "STATUS": "string",
+              "flag_count": "number"
+            }
+          },
+          "policies": {
+            "array": {
+              "COVERAGE_AMOUNT": "string",
+              "END_DATE": "string",
+              "PATIENT_ID": "number",
+              "POLICY_ID": "number",
+              "POLICY_TYPE": "string",
+              "START_DATE": "string"
+            }
+          },
+          "total_claims": "number"
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.policies": 1,
+        "data.claims": 1
+      }
+    },
+    "GET /policies?limit=5": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "COVERAGE_AMOUNT": "string",
+            "END_DATE": "string",
+            "PATIENT_EMAIL": "string",
+            "PATIENT_ID": "number",
+            "PATIENT_NAME": "string",
+            "POLICY_ID": "number",
+            "POLICY_TYPE": "string",
+            "START_DATE": "string",
+            "claim_count": "number"
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data": 5
+      }
+    },
+    "GET /policies/1": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "COVERAGE_AMOUNT": "string",
+          "END_DATE": "string",
+          "PATIENT_ID": "number",
+          "PATIENT_NAME": "string",
+          "POLICY_ID": "number",
+          "POLICY_TYPE": "string",
+          "START_DATE": "string",
+          "claims": {
+            "array": {
+              "APPROVED_AMOUNT": "string",
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_DATE": "string",
+              "CLAIM_ID": "number",
+              "DIAGNOSIS": "string",
+              "POLICY_ID": "number",
+              "PROVIDER_ID": "number",
+              "PROVIDER_NAME": "string",
+              "STATUS": "string",
+              "flag_count": "number"
+            }
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.claims": 1
+      }
+    },
+    "GET /providers?limit=5": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "ADDRESS": "string",
+            "CONTACT_NUMBER": "string",
+            "PROVIDER_ID": "number",
+            "PROVIDER_NAME": "string",
+            "PROVIDER_TYPE": "string",
+            "fraud_flags": "number",
+            "total_billed": "string",
+            "total_claims": "number"
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data": 5
+      }
+    },
+    "GET /providers/1": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "ADDRESS": "string",
+          "CONTACT_NUMBER": "string",
+          "PROVIDER_ID": "number",
+          "PROVIDER_NAME": "string",
+          "PROVIDER_TYPE": "string",
+          "claims": {
+            "array": {
+              "APPROVED_AMOUNT": "string",
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_DATE": "string",
+              "CLAIM_ID": "number",
+              "DIAGNOSIS": "string",
+              "PATIENT_NAME": "string",
+              "POLICY_ID": "number",
+              "POLICY_TYPE": "string",
+              "PROVIDER_ID": "number",
+              "STATUS": "string",
+              "flag_count": "number"
+            }
+          },
+          "fraud_flags": "number",
+          "total_billed": "string",
+          "total_claims": "number"
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.claims": 7
+      }
+    },
+    "GET /fraud-flags?limit=5": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "CLAIM_AMOUNT": "string",
+            "CLAIM_DATE": "string",
+            "CLAIM_ID": "number",
+            "DIAGNOSIS": "string",
+            "FLAGGED_DATE": "string",
+            "FLAG_ID": "number",
+            "FLAG_REASON": "string",
+            "PATIENT_NAME": "string",
+            "POLICY_TYPE": "string",
+            "PROVIDER_NAME": "string",
+            "STATUS": "string"
+          }
+        },
+        "success": "boolean",
+        "total": "number"
+      },
+      "lengths": {
+        "data": 5
+      }
+    },
+    "GET /fraud-flags/:id": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "APPROVED_AMOUNT": "string",
+          "CLAIM_AMOUNT": "string",
+          "CLAIM_DATE": "string",
+          "CLAIM_ID": "number",
+          "CONTACT_NUMBER": "string",
+          "COVERAGE_AMOUNT": "string",
+          "DIAGNOSIS": "string",
+          "DOB": "string",
+          "EMAIL": "string",
+          "END_DATE": "string",
+          "FLAGGED_DATE": "string",
+          "FLAG_ID": "number",
+          "FLAG_REASON": "string",
+          "GENDER": "string",
+          "PATIENT_NAME": "string",
+          "POLICY_TYPE": "string",
+          "PROVIDER_NAME": "string",
+          "PROVIDER_TYPE": "string",
+          "START_DATE": "string",
+          "STATUS": "string",
+          "all_flags": {
+            "array": {
+              "CLAIM_ID": "number",
+              "FLAGGED_DATE": "string",
+              "FLAG_ID": "number",
+              "FLAG_REASON": "string"
+            }
+          },
+          "triggered_rules": {
+            "array": {
+              "DESCRIPTION": "string",
+              "RULE_ID": "number",
+              "RULE_NAME": "string",
+              "THRESHOLD_VALUE": "string"
+            }
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.triggered_rules": 2,
+        "data.all_flags": 2
+      }
+    },
+    "GET /fraud-rules": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "DESCRIPTION": "string",
+            "RULE_ID": "number",
+            "RULE_NAME": "string",
+            "THRESHOLD_VALUE": "string",
+            "times_triggered": "number"
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data": 6
+      }
+    },
+    "GET /high-risk-claims": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "APPROVED_AMOUNT": "string",
+            "CLAIM_AMOUNT": "string",
+            "CLAIM_DATE": "string",
+            "CLAIM_ID": "number",
+            "COVERAGE_AMOUNT": "string",
+            "DIAGNOSIS": "string",
+            "FLAG_COUNT": "number",
+            "FLAG_REASONS": "string",
+            "PATIENT_NAME": "string",
+            "POLICY_TYPE": "string",
+            "PROVIDER_NAME": "string",
+            "PROVIDER_TYPE": "string",
+            "RULE_COUNT": "number",
+            "STATUS": "string"
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data": 3
+      }
+    },
+    "GET /reports": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "above_average_claims": {
+            "array": {
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_ID": "number",
+              "DIAGNOSIS": "string",
+              "PATIENT_NAME": "string",
+              "STATUS": "string"
+            }
+          },
+          "fraud_summary": {
+            "array": {
+              "CLAIM_AMOUNT": "string",
+              "CLAIM_ID": "number",
+              "STATUS": "string",
+              "fraud_flags": "number",
+              "rules_triggered": "number"
+            }
+          },
+          "per_provider": {
+            "array": {
+              "PROVIDER_NAME": "string",
+              "PROVIDER_TYPE": "string",
+              "avg_amount": "string",
+              "total_amount": "string",
+              "total_claims": "number"
+            }
+          },
+          "suspicious_providers": {
+            "array": {
+              "PROVIDER_ID": "number",
+              "PROVIDER_NAME": "string",
+              "PROVIDER_TYPE": "string",
+              "claim_count": "number",
+              "fraud_flags": "number",
+              "total_billed": "string"
+            }
+          }
+        },
+        "success": "boolean"
+      },
+      "lengths": {
+        "data.above_average_claims": 3,
+        "data.per_provider": 30,
+        "data.suspicious_providers": 1,
+        "data.fraud_summary": 3
+      }
+    },
+    "GET /users": {
+      "status": 200,
+      "shape": {
+        "data": {
+          "array": {
+            "createdAt": "string",
+            "department": "string",
+            "email": "string",
+            "fullName": "string",
+            "id": "number",
+            "lastLogin": "string",
+            "phone": "string",
+            "role": "string",
+            "status": "string",
+            "username": "string"
+          }
+        },
+        "success": "boolean",
+        "total": "number"
+      },
+      "lengths": {
+        "data": 4
+      }
+    }
+  }
+}
