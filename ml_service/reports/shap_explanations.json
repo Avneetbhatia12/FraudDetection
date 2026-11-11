@@ -1,0 +1,945 @@
+{
+  "generated_utc": "2026-11-11T10:46:07+00:00",
+  "run_id": "run-20261111-102008",
+  "shap_version": "0.46.0",
+  "xgboost_version": "2.1.3",
+  "model_sha256": "24939f046aa1b073174f9ba49090601dd644fb6cbbf159c4ad962257ed95166d",
+  "explainer": "shap.TreeExplainer (tree_path_dependent, exact)",
+  "base_value_log_odds": 0.30229273438453674,
+  "base_score": 0.5750028988986938,
+  "threshold": 0.6426740884780884,
+  "checks": {
+    "n_providers": 5410,
+    "max_abs_additivity_error_log_odds": 6.67572021484375e-06,
+    "max_abs_score_error": 6.556510925292969e-07,
+    "max_abs_diff_vs_xgboost_native_contribs": 0.0,
+    "max_abs_diff_vs_phase2_inference_scores": 0.0,
+    "feature_order_matches_model": true,
+    "reproducible_across_explainer_instances": true,
+    "model_file_unchanged": true
+  },
+  "stability_dev_vs_test": {
+    "spearman_mean_abs_shap": 0.9976873265494912,
+    "top10_overlap": 9
+  },
+  "global_importance_test": [
+    {
+      "rank": 1,
+      "feature": "log_total_reimbursed",
+      "group": "Amounts",
+      "mean_abs_shap": 1.5912469625473022,
+      "mean_shap": -1.134000301361084,
+      "value_shap_correlation": 0.8408,
+      "direction": "higher values raise the score",
+      "description": "log1p(sum of amounts)",
+      "share_of_total": 0.22951209545147583
+    },
+    {
+      "rank": 2,
+      "feature": "ip_los_max",
+      "group": "Inpatient",
+      "mean_abs_shap": 0.8211638331413269,
+      "mean_shap": -0.48451346158981323,
+      "value_shap_correlation": 0.7713,
+      "direction": "higher values raise the score",
+      "description": "max length of stay; 0 if none",
+      "share_of_total": 0.11843983774305525
+    },
+    {
+      "rank": 3,
+      "feature": "claims_per_patient",
+      "group": "Volume",
+      "mean_abs_shap": 0.2747357487678528,
+      "mean_shap": -0.16343848407268524,
+      "value_shap_correlation": 0.672,
+      "direction": "higher values raise the score",
+      "description": "claims / distinct patients",
+      "share_of_total": 0.03962626724779417
+    },
+    {
+      "rank": 4,
+      "feature": "share_patients_3plus_claims",
+      "group": "Timing",
+      "mean_abs_shap": 0.24707075953483582,
+      "mean_shap": -0.11729808896780014,
+      "value_shap_correlation": 0.8303,
+      "direction": "higher values raise the score",
+      "description": "patients with >=3 claims at this provider / patients",
+      "share_of_total": 0.0356360320429785
+    },
+    {
+      "rank": 5,
+      "feature": "distinct_primary_dx_per_claim",
+      "group": "Coding",
+      "mean_abs_shap": 0.2287834733724594,
+      "mean_shap": -0.10718683898448944,
+      "value_shap_correlation": -0.8566,
+      "direction": "higher values lower the score",
+      "description": "distinct primary diagnoses / claims",
+      "share_of_total": 0.0329983815298684
+    },
+    {
+      "rank": 6,
+      "feature": "ip_proc_per_claim",
+      "group": "Inpatient",
+      "mean_abs_shap": 0.2280852347612381,
+      "mean_shap": -0.21083827316761017,
+      "value_shap_correlation": 0.5856,
+      "direction": "higher values raise the score",
+      "description": "mean number of procedure codes on inpatient claims",
+      "share_of_total": 0.03289767170257044
+    },
+    {
+      "rank": 7,
+      "feature": "patient_log_op_annual_mean",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.22349749505519867,
+      "mean_shap": -0.004775872454047203,
+      "value_shap_correlation": 0.8148,
+      "direction": "higher values raise the score",
+      "description": "mean log1p(annual outpatient total, clipped)",
+      "share_of_total": 0.03223596313180687
+    },
+    {
+      "rank": 8,
+      "feature": "op_log_amt_max",
+      "group": "Amounts",
+      "mean_abs_shap": 0.20648334920406342,
+      "mean_shap": 0.038922131061553955,
+      "value_shap_correlation": -0.5953,
+      "direction": "higher values lower the score",
+      "description": "max log1p(amount); 0 if none",
+      "share_of_total": 0.029781942883208908
+    },
+    {
+      "rank": 9,
+      "feature": "median_days_between_patient_claims",
+      "group": "Timing",
+      "mean_abs_shap": 0.1993832141160965,
+      "mean_shap": -0.06281442940235138,
+      "value_shap_correlation": -0.4235,
+      "direction": "higher values lower the score",
+      "description": "median gap between consecutive claims of the same patient at this provider; 400 if no repeats",
+      "share_of_total": 0.028757861191062776
+    },
+    {
+      "rank": 10,
+      "feature": "patient_share_deceased",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.18912021815776825,
+      "mean_shap": -0.06490084528923035,
+      "value_shap_correlation": 0.3999,
+      "direction": "higher values raise the score",
+      "description": "share of patients with a date of death in the period",
+      "share_of_total": 0.02727758706426398
+    },
+    {
+      "rank": 11,
+      "feature": "op_share_operating",
+      "group": "Coding",
+      "mean_abs_shap": 0.18126332759857178,
+      "mean_shap": -0.05930830165743828,
+      "value_shap_correlation": -0.7333,
+      "direction": "higher values lower the score",
+      "description": "outpatient claims with an operating physician / outpatient claims",
+      "share_of_total": 0.02614435541737529
+    },
+    {
+      "rank": 12,
+      "feature": "log_amount_per_patient",
+      "group": "Amounts",
+      "mean_abs_shap": 0.1803307980298996,
+      "mean_shap": -0.12022794783115387,
+      "value_shap_correlation": 0.5778,
+      "direction": "higher values raise the score",
+      "description": "log1p(sum of amounts / distinct patients)",
+      "share_of_total": 0.026009852841462254
+    },
+    {
+      "rank": 13,
+      "feature": "claim_days_mean",
+      "group": "Timing",
+      "mean_abs_shap": 0.15468542277812958,
+      "mean_shap": 0.045103564858436584,
+      "value_shap_correlation": -0.5537,
+      "direction": "higher values lower the score",
+      "description": "mean claim duration (days)",
+      "share_of_total": 0.022310914869413688
+    },
+    {
+      "rank": 14,
+      "feature": "patient_log_ip_annual_mean",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.13992610573768616,
+      "mean_shap": -0.12037573009729385,
+      "value_shap_correlation": 0.597,
+      "direction": "higher values raise the score",
+      "description": "mean log1p(annual inpatient total, negatives clipped to 0)",
+      "share_of_total": 0.02018211785605622
+    },
+    {
+      "rank": 15,
+      "feature": "diag_per_claim",
+      "group": "Coding",
+      "mean_abs_shap": 0.13321484625339508,
+      "mean_shap": -0.05805046483874321,
+      "value_shap_correlation": 0.5845,
+      "direction": "higher values raise the score",
+      "description": "mean number of diagnosis codes per claim",
+      "share_of_total": 0.01921412529197775
+    },
+    {
+      "rank": 16,
+      "feature": "mean_log_amount_vs_dx_ref",
+      "group": "Fitted",
+      "mean_abs_shap": 0.13158942759037018,
+      "mean_shap": -0.08589000999927521,
+      "value_shap_correlation": 0.5601,
+      "direction": "higher values raise the score",
+      "description": "mean over paid claims of log1p(amount) - log1p(training median amount for same claim type and primary code)",
+      "share_of_total": 0.01897968447159146
+    },
+    {
+      "rank": 17,
+      "feature": "op_share_admit_dx",
+      "group": "Coding",
+      "mean_abs_shap": 0.12756386399269104,
+      "mean_shap": -0.07160770893096924,
+      "value_shap_correlation": -0.2532,
+      "direction": "higher values lower the score",
+      "description": "outpatient claims with an admit diagnosis / outpatient claims",
+      "share_of_total": 0.01839906087360671
+    },
+    {
+      "rank": 18,
+      "feature": "share_same_day_repeat",
+      "group": "Timing",
+      "mean_abs_shap": 0.11870471388101578,
+      "mean_shap": -0.05448891967535019,
+      "value_shap_correlation": 0.6549,
+      "direction": "higher values raise the score",
+      "description": "claims where the same patient has another claim at this provider starting the same day / claims",
+      "share_of_total": 0.017121269208386594
+    },
+    {
+      "rank": 19,
+      "feature": "ip_mean_log_amount_vs_drg_ref",
+      "group": "Fitted",
+      "mean_abs_shap": 0.1043996587395668,
+      "mean_shap": -0.05482816323637962,
+      "value_shap_correlation": 0.4484,
+      "direction": "higher values raise the score",
+      "description": "mean over paid inpatient claims of log1p(amount) - log1p(training median for the same DRG); 0 if none",
+      "share_of_total": 0.015057992257455563
+    },
+    {
+      "rank": 20,
+      "feature": "share_zero_amount",
+      "group": "Amounts",
+      "mean_abs_shap": 0.09240500628948212,
+      "mean_shap": -0.044067975133657455,
+      "value_shap_correlation": -0.5314,
+      "direction": "higher values lower the score",
+      "description": "claims with amount 0 / claims",
+      "share_of_total": 0.01332795419119325
+    },
+    {
+      "rank": 21,
+      "feature": "log_n_states_served",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.08795089274644852,
+      "mean_shap": -0.04742298275232315,
+      "value_shap_correlation": 0.6529,
+      "direction": "higher values raise the score",
+      "description": "log1p(distinct patient states)",
+      "share_of_total": 0.012685519071628928
+    },
+    {
+      "rank": 22,
+      "feature": "patient_mean_other_providers",
+      "group": "Network",
+      "mean_abs_shap": 0.08693450689315796,
+      "mean_shap": -0.05652226135134697,
+      "value_shap_correlation": -0.4802,
+      "direction": "higher values lower the score",
+      "description": "mean over the provider's patients of how many OTHER training providers each patient also uses",
+      "share_of_total": 0.012538921558818897
+    },
+    {
+      "rank": 23,
+      "feature": "ip_log_amt_max",
+      "group": "Amounts",
+      "mean_abs_shap": 0.08637949824333191,
+      "mean_shap": -0.04911863058805466,
+      "value_shap_correlation": 0.632,
+      "direction": "higher values raise the score",
+      "description": "max log1p(amount); 0 if none",
+      "share_of_total": 0.012458870378069834
+    },
+    {
+      "rank": 24,
+      "feature": "share_inpatient",
+      "group": "Volume",
+      "mean_abs_shap": 0.07979196310043335,
+      "mean_shap": -0.041461631655693054,
+      "value_shap_correlation": 0.7178,
+      "direction": "higher values raise the score",
+      "description": "inpatient claims / all claims",
+      "share_of_total": 0.011508723084725392
+    },
+    {
+      "rank": 25,
+      "feature": "ip_log_amt_mean",
+      "group": "Amounts",
+      "mean_abs_shap": 0.07786334306001663,
+      "mean_shap": -0.058996763080358505,
+      "value_shap_correlation": 0.6094,
+      "direction": "higher values raise the score",
+      "description": "mean log1p(amount); 0 if no inpatient claims",
+      "share_of_total": 0.01123055028237348
+    },
+    {
+      "rank": 26,
+      "feature": "share_rare_primary_dx",
+      "group": "Fitted",
+      "mean_abs_shap": 0.07626497000455856,
+      "mean_shap": -0.03603910654783249,
+      "value_shap_correlation": -0.6354,
+      "direction": "higher values lower the score",
+      "description": "share of claims whose primary code appears < 5 times in training providers' claims",
+      "share_of_total": 0.01100001036122629
+    },
+    {
+      "rank": 27,
+      "feature": "patient_share_renal",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.06976325064897537,
+      "mean_shap": -0.03186147287487984,
+      "value_shap_correlation": 0.3828,
+      "direction": "higher values raise the score",
+      "description": "share of distinct patients with renal disease",
+      "share_of_total": 0.010062240631913792
+    },
+    {
+      "rank": 28,
+      "feature": "share_other_physician",
+      "group": "Coding",
+      "mean_abs_shap": 0.06808236986398697,
+      "mean_shap": -0.05600479990243912,
+      "value_shap_correlation": -0.3888,
+      "direction": "higher values lower the score",
+      "description": "claims with an other physician / claims",
+      "share_of_total": 0.009819800281517622
+    },
+    {
+      "rank": 29,
+      "feature": "claims_per_active_month",
+      "group": "Volume",
+      "mean_abs_shap": 0.0610947348177433,
+      "mean_shap": -0.03982112556695938,
+      "value_shap_correlation": 0.5076,
+      "direction": "higher values raise the score",
+      "description": "claims / active months",
+      "share_of_total": 0.008811944933189892
+    },
+    {
+      "rank": 30,
+      "feature": "op_log_deductible_mean",
+      "group": "Amounts",
+      "mean_abs_shap": 0.06004765257239342,
+      "mean_shap": -0.018376260995864868,
+      "value_shap_correlation": 0.5006,
+      "direction": "higher values raise the score",
+      "description": "mean log1p(deductible); 0 if none",
+      "share_of_total": 0.008660919953474875
+    },
+    {
+      "rank": 31,
+      "feature": "op_log_amt_std",
+      "group": "Amounts",
+      "mean_abs_shap": 0.05326240882277489,
+      "mean_shap": -0.010274482890963554,
+      "value_shap_correlation": 0.2347,
+      "direction": "higher values raise the score",
+      "description": "std of log1p(amount); 0 if <2 claims",
+      "share_of_total": 0.007682256334453082
+    },
+    {
+      "rank": 32,
+      "feature": "patient_chronic_mean",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.05322816222906113,
+      "mean_shap": -0.027143146842718124,
+      "value_shap_correlation": 0.7355,
+      "direction": "higher values raise the score",
+      "description": "mean number of chronic conditions per distinct patient",
+      "share_of_total": 0.007677316807358722
+    },
+    {
+      "rank": 33,
+      "feature": "ip_log_amt_std",
+      "group": "Amounts",
+      "mean_abs_shap": 0.05205993354320526,
+      "mean_shap": 0.013474473729729652,
+      "value_shap_correlation": -0.6657,
+      "direction": "higher values lower the score",
+      "description": "std of log1p(amount); 0 if <2 claims",
+      "share_of_total": 0.007508818378159469
+    },
+    {
+      "rank": 34,
+      "feature": "claims_per_attending",
+      "group": "Volume",
+      "mean_abs_shap": 0.0502609945833683,
+      "mean_shap": -0.037222858518362045,
+      "value_shap_correlation": 0.059,
+      "direction": "mixed / non-monotonic",
+      "description": "claims / distinct attending physicians",
+      "share_of_total": 0.007249350011539284
+    },
+    {
+      "rank": 35,
+      "feature": "op_log_amt_median",
+      "group": "Amounts",
+      "mean_abs_shap": 0.049901265650987625,
+      "mean_shap": -0.010735399089753628,
+      "value_shap_correlation": 0.4503,
+      "direction": "higher values raise the score",
+      "description": "median log1p(amount); 0 if none",
+      "share_of_total": 0.007197464827775574
+    },
+    {
+      "rank": 36,
+      "feature": "log_n_attending",
+      "group": "Volume",
+      "mean_abs_shap": 0.04697372019290924,
+      "mean_shap": -0.0008303169743157923,
+      "value_shap_correlation": -0.737,
+      "direction": "higher values lower the score",
+      "description": "log1p(distinct attending physicians)",
+      "share_of_total": 0.006775212903072814
+    },
+    {
+      "rank": 37,
+      "feature": "log_n_patients",
+      "group": "Volume",
+      "mean_abs_shap": 0.04521296173334122,
+      "mean_shap": -0.030170906335115433,
+      "value_shap_correlation": 0.5659,
+      "direction": "higher values raise the score",
+      "description": "log1p(distinct patients)",
+      "share_of_total": 0.006521251467072676
+    },
+    {
+      "rank": 38,
+      "feature": "ip_los_mean",
+      "group": "Inpatient",
+      "mean_abs_shap": 0.040366269648075104,
+      "mean_shap": 0.0091167613863945,
+      "value_shap_correlation": -0.4565,
+      "direction": "higher values lower the score",
+      "description": "mean length of stay (days); 0 if none",
+      "share_of_total": 0.005822193129379578
+    },
+    {
+      "rank": 39,
+      "feature": "ip_share_operating",
+      "group": "Inpatient",
+      "mean_abs_shap": 0.0376543328166008,
+      "mean_shap": -0.011106287129223347,
+      "value_shap_correlation": -0.7166,
+      "direction": "higher values lower the score",
+      "description": "inpatient claims with an operating physician / inpatient claims",
+      "share_of_total": 0.0054310393238588325
+    },
+    {
+      "rank": 40,
+      "feature": "ip_log_amt_median",
+      "group": "Amounts",
+      "mean_abs_shap": 0.03572322428226471,
+      "mean_shap": -0.027439897879958153,
+      "value_shap_correlation": 0.3654,
+      "direction": "higher values raise the score",
+      "description": "median log1p(amount); 0 if none",
+      "share_of_total": 0.005152507595791808
+    },
+    {
+      "rank": 41,
+      "feature": "attending_mean_other_providers",
+      "group": "Network",
+      "mean_abs_shap": 0.032571256160736084,
+      "mean_shap": -0.01090329047292471,
+      "value_shap_correlation": 0.3932,
+      "direction": "higher values raise the score",
+      "description": "mean over the provider's attending physicians of how many OTHER training providers each also bills under",
+      "share_of_total": 0.004697886267113682
+    },
+    {
+      "rank": 42,
+      "feature": "log_n_claims",
+      "group": "Volume",
+      "mean_abs_shap": 0.031419537961483,
+      "mean_shap": -0.014543564058840275,
+      "value_shap_correlation": 0.5593,
+      "direction": "higher values raise the score",
+      "description": "log1p(number of claims)",
+      "share_of_total": 0.004531769213317692
+    },
+    {
+      "rank": 43,
+      "feature": "patient_share_partial_coverage",
+      "group": "Patient mix",
+      "mean_abs_shap": 0.03140782192349434,
+      "mean_shap": -0.01950790360569954,
+      "value_shap_correlation": 0.3233,
+      "direction": "higher values raise the score",
+      "description": "share of patients with < 12 months Part A or B",
+      "share_of_total": 0.00453007936096136
+    },
+    {
+      "rank": 44,
+      "feature": "op_log_amt_mean",
+      "group": "Amounts",
+      "mean_abs_shap": 0.02564811520278454,
+      "mean_shap": -0.015789492055773735,
+      "value_shap_correlation": 0.2768,
+      "direction": "higher values raise the score",
+      "description": "mean log1p(amount); 0 if none",
+      "share_of_total": 0.0036993331664549505
+    },
+    {
+      "rank": 45,
+      "feature": "active_months",
+      "group": "Volume",
+      "mean_abs_shap": 0.015648014843463898,
+      "mean_shap": -0.0014165082247927785,
+      "value_shap_correlation": 0.5438,
+      "direction": "higher values raise the score",
+      "description": "distinct calendar months with a claim",
+      "share_of_total": 0.0022569775533962328
+    },
+    {
+      "rank": 46,
+      "feature": "ip_distinct_drg_per_claim",
+      "group": "Inpatient",
+      "mean_abs_shap": 0.004007899668067694,
+      "mean_shap": -0.0027946371119469404,
+      "value_shap_correlation": -0.0486,
+      "direction": "mixed / non-monotonic",
+      "description": "distinct DRGs / inpatient claims",
+      "share_of_total": 0.0005780758567513348
+    },
+    {
+      "rank": 47,
+      "feature": "share_near_duplicate",
+      "group": "Timing",
+      "mean_abs_shap": 0.0,
+      "mean_shap": 0.0,
+      "value_shap_correlation": 0.0,
+      "direction": "mixed / non-monotonic",
+      "description": "claims repeating an earlier identical claim / claims",
+      "share_of_total": 0.0
+    }
+  ],
+  "group_importance_test": [
+    {
+      "group": "Amounts",
+      "n_features": 12,
+      "mean_abs_group_shap": 1.8605276346206665,
+      "mean_group_shap": -1.4366304874420166,
+      "share": 0.3766328408669373
+    },
+    {
+      "group": "Inpatient",
+      "n_features": 5,
+      "mean_abs_group_shap": 0.9949087500572205,
+      "mean_group_shap": -0.7001359462738037,
+      "share": 0.20140271069600288
+    },
+    {
+      "group": "Coding",
+      "n_features": 5,
+      "mean_abs_group_shap": 0.5007438659667969,
+      "mean_group_shap": -0.3521581292152405,
+      "share": 0.101367258016686
+    },
+    {
+      "group": "Patient mix",
+      "n_features": 7,
+      "mean_abs_group_shap": 0.4363095462322235,
+      "mean_group_shap": -0.3159879446029663,
+      "share": 0.08832360285167748
+    },
+    {
+      "group": "Timing",
+      "n_features": 5,
+      "mean_abs_group_shap": 0.4276326298713684,
+      "mean_group_shap": -0.18949787318706512,
+      "share": 0.08656710560963574
+    },
+    {
+      "group": "Volume",
+      "n_features": 8,
+      "mean_abs_group_shap": 0.39530789852142334,
+      "mean_group_shap": -0.3289054036140442,
+      "share": 0.08002350197158896
+    },
+    {
+      "group": "Fitted",
+      "n_features": 3,
+      "mean_abs_group_shap": 0.22511476278305054,
+      "mean_group_shap": -0.17675729095935822,
+      "share": 0.04557073544642809
+    },
+    {
+      "group": "Network",
+      "n_features": 2,
+      "mean_abs_group_shap": 0.09935242682695389,
+      "mean_group_shap": -0.06742554903030396,
+      "share": 0.020112244541043545
+    }
+  ],
+  "examples": {
+    "PRV54742": {
+      "provider": "PRV54742",
+      "run_id": "run-20261111-102008",
+      "model": "XGBoost",
+      "risk_score": 0.9971279501914978,
+      "threshold": 0.6426740884780884,
+      "flagged": true,
+      "base_value_log_odds": 0.30229273438453674,
+      "base_score": 0.5750028988986938,
+      "model_log_odds": 5.8498640060424805,
+      "additivity_error": 3.1223701846272434e-08,
+      "top_contributions": [
+        {
+          "feature": "log_total_reimbursed",
+          "group": "Amounts",
+          "value": 14.903914451599121,
+          "dev_percentile": 0.9991,
+          "shap_log_odds": 2.335023880004883,
+          "direction": "increases risk score",
+          "description": "log1p(sum of amounts)"
+        },
+        {
+          "feature": "distinct_primary_dx_per_claim",
+          "group": "Coding",
+          "value": 0.6088795065879822,
+          "dev_percentile": 0.0039,
+          "shap_log_odds": 1.4765928983688354,
+          "direction": "increases risk score",
+          "description": "distinct primary diagnoses / claims"
+        },
+        {
+          "feature": "ip_los_max",
+          "group": "Inpatient",
+          "value": 35.0,
+          "dev_percentile": 0.9519,
+          "shap_log_odds": 1.1337896585464478,
+          "direction": "increases risk score",
+          "description": "max length of stay; 0 if none"
+        },
+        {
+          "feature": "ip_log_amt_max",
+          "group": "Amounts",
+          "value": 11.736077308654785,
+          "dev_percentile": 0.9993,
+          "shap_log_odds": 0.1758904904127121,
+          "direction": "increases risk score",
+          "description": "max log1p(amount); 0 if none"
+        },
+        {
+          "feature": "share_same_day_repeat",
+          "group": "Timing",
+          "value": 0.004228329751640558,
+          "dev_percentile": 0.9017,
+          "shap_log_odds": 0.14391641318798065,
+          "direction": "increases risk score",
+          "description": "claims where the same patient has another claim at this provider starting the same day / claims"
+        },
+        {
+          "feature": "median_days_between_patient_claims",
+          "group": "Timing",
+          "value": 45.0,
+          "dev_percentile": 0.1453,
+          "shap_log_odds": 0.14208243787288666,
+          "direction": "increases risk score",
+          "description": "median gap between consecutive claims of the same patient at this provider; 400 if no repeats"
+        },
+        {
+          "feature": "op_log_amt_max",
+          "group": "Amounts",
+          "value": 8.318985939025879,
+          "dev_percentile": 0.9391,
+          "shap_log_odds": -0.1351568102836609,
+          "direction": "decreases risk score",
+          "description": "max log1p(amount); 0 if none"
+        },
+        {
+          "feature": "share_patients_3plus_claims",
+          "group": "Timing",
+          "value": 0.19413548707962036,
+          "dev_percentile": 0.8567,
+          "shap_log_odds": 0.11367101222276688,
+          "direction": "increases risk score",
+          "description": "patients with >=3 claims at this provider / patients"
+        },
+        {
+          "feature": "log_n_states_served",
+          "group": "Patient mix",
+          "value": 2.079441547393799,
+          "dev_percentile": 0.9313,
+          "shap_log_odds": 0.11272457987070084,
+          "direction": "increases risk score",
+          "description": "log1p(distinct patient states)"
+        },
+        {
+          "feature": "op_share_admit_dx",
+          "group": "Coding",
+          "value": 0.1860325038433075,
+          "dev_percentile": 0.4611,
+          "shap_log_odds": 0.10184712707996368,
+          "direction": "increases risk score",
+          "description": "outpatient claims with an admit diagnosis / outpatient claims"
+        }
+      ],
+      "other_features_shap_log_odds": -0.0528106689453125,
+      "split": "test",
+      "disclaimer": "SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "summary": "Provider PRV54742: model risk score 0.997 (at or above the decision threshold 0.643, so flagged for review).\nThe model starts from a baseline of +0.302 log-odds (score 0.575) and the provider's features move it to +5.850 log-odds.\nFeatures that raised the score most:\n  - log_total_reimbursed = 14.9 (above 100% of development providers; log1p(sum of amounts)): +2.335 log-odds\n  - distinct_primary_dx_per_claim = 0.6089 (above 0% of development providers; distinct primary diagnoses / claims): +1.477 log-odds\n  - ip_los_max = 35 (above 95% of development providers; max length of stay; 0 if none): +1.134 log-odds\n  - ip_log_amt_max = 11.74 (above 100% of development providers; max log1p(amount); 0 if none): +0.176 log-odds\n  - share_same_day_repeat = 0.004228 (above 90% of development providers; claims where the same patient has another claim at this provider starting the same day / claims): +0.144 log-odds\n  - median_days_between_patient_claims = 45 (above 15% of development providers; median gap between consecutive claims of the same patient at this provider; 400 if no repeats): +0.142 log-odds\n  - share_patients_3plus_claims = 0.1941 (above 86% of development providers; patients with >=3 claims at this provider / patients): +0.114 log-odds\n  - log_n_states_served = 2.079 (above 93% of development providers; log1p(distinct patient states)): +0.113 log-odds\n  - op_share_admit_dx = 0.186 (above 46% of development providers; outpatient claims with an admit diagnosis / outpatient claims): +0.102 log-odds\nFeatures that lowered the score most:\n  - op_log_amt_max = 8.319 (above 94% of development providers; max log1p(amount); 0 if none): -0.135 log-odds\nAll other features together: -0.053 log-odds.\nNote: SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "selection_rule": "highest-scored test provider",
+      "label": "Yes"
+    },
+    "PRV55916": {
+      "provider": "PRV55916",
+      "run_id": "run-20261111-102008",
+      "model": "XGBoost",
+      "risk_score": 0.9931150078773499,
+      "threshold": 0.6426740884780884,
+      "flagged": true,
+      "base_value_log_odds": 0.30229273438453674,
+      "base_score": 0.5750028988986938,
+      "model_log_odds": 4.971498966217041,
+      "additivity_error": 2.4079852334324414e-08,
+      "top_contributions": [
+        {
+          "feature": "log_total_reimbursed",
+          "group": "Amounts",
+          "value": 14.086332321166992,
+          "dev_percentile": 0.99,
+          "shap_log_odds": 2.2109835147857666,
+          "direction": "increases risk score",
+          "description": "log1p(sum of amounts)"
+        },
+        {
+          "feature": "ip_los_max",
+          "group": "Inpatient",
+          "value": 35.0,
+          "dev_percentile": 0.9519,
+          "shap_log_odds": 1.388141393661499,
+          "direction": "increases risk score",
+          "description": "max length of stay; 0 if none"
+        },
+        {
+          "feature": "patient_share_renal",
+          "group": "Patient mix",
+          "value": 0.35849055647850037,
+          "dev_percentile": 0.9376,
+          "shap_log_odds": 0.39560437202453613,
+          "direction": "increases risk score",
+          "description": "share of distinct patients with renal disease"
+        },
+        {
+          "feature": "patient_share_deceased",
+          "group": "Patient mix",
+          "value": 0.01886792480945587,
+          "dev_percentile": 0.8852,
+          "shap_log_odds": 0.2814730703830719,
+          "direction": "increases risk score",
+          "description": "share of patients with a date of death in the period"
+        },
+        {
+          "feature": "op_log_amt_max",
+          "group": "Amounts",
+          "value": 6.8035054206848145,
+          "dev_percentile": 0.2847,
+          "shap_log_odds": 0.26878705620765686,
+          "direction": "increases risk score",
+          "description": "max log1p(amount); 0 if none"
+        },
+        {
+          "feature": "ip_log_amt_max",
+          "group": "Amounts",
+          "value": 10.950823783874512,
+          "dev_percentile": 0.9319,
+          "shap_log_odds": 0.1495116949081421,
+          "direction": "increases risk score",
+          "description": "max log1p(amount); 0 if none"
+        },
+        {
+          "feature": "share_patients_3plus_claims",
+          "group": "Timing",
+          "value": 0.01886792480945587,
+          "dev_percentile": 0.5996,
+          "shap_log_odds": -0.14270126819610596,
+          "direction": "decreases risk score",
+          "description": "patients with >=3 claims at this provider / patients"
+        },
+        {
+          "feature": "median_days_between_patient_claims",
+          "group": "Timing",
+          "value": 97.0,
+          "dev_percentile": 0.4928,
+          "shap_log_odds": -0.13169783353805542,
+          "direction": "decreases risk score",
+          "description": "median gap between consecutive claims of the same patient at this provider; 400 if no repeats"
+        },
+        {
+          "feature": "op_log_deductible_mean",
+          "group": "Amounts",
+          "value": 0.37590494751930237,
+          "dev_percentile": 0.9189,
+          "shap_log_odds": 0.11927982419729233,
+          "direction": "increases risk score",
+          "description": "mean log1p(deductible); 0 if none"
+        },
+        {
+          "feature": "op_share_admit_dx",
+          "group": "Coding",
+          "value": 0.0833333358168602,
+          "dev_percentile": 0.1946,
+          "shap_log_odds": -0.10718365013599396,
+          "direction": "decreases risk score",
+          "description": "outpatient claims with an admit diagnosis / outpatient claims"
+        }
+      ],
+      "other_features_shap_log_odds": 0.23700809478759766,
+      "split": "test",
+      "disclaimer": "SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "summary": "Provider PRV55916: model risk score 0.993 (at or above the decision threshold 0.643, so flagged for review).\nThe model starts from a baseline of +0.302 log-odds (score 0.575) and the provider's features move it to +4.971 log-odds.\nFeatures that raised the score most:\n  - log_total_reimbursed = 14.09 (above 99% of development providers; log1p(sum of amounts)): +2.211 log-odds\n  - ip_los_max = 35 (above 95% of development providers; max length of stay; 0 if none): +1.388 log-odds\n  - patient_share_renal = 0.3585 (above 94% of development providers; share of distinct patients with renal disease): +0.396 log-odds\n  - patient_share_deceased = 0.01887 (above 89% of development providers; share of patients with a date of death in the period): +0.281 log-odds\n  - op_log_amt_max = 6.804 (above 28% of development providers; max log1p(amount); 0 if none): +0.269 log-odds\n  - ip_log_amt_max = 10.95 (above 93% of development providers; max log1p(amount); 0 if none): +0.150 log-odds\n  - op_log_deductible_mean = 0.3759 (above 92% of development providers; mean log1p(deductible); 0 if none): +0.119 log-odds\nFeatures that lowered the score most:\n  - share_patients_3plus_claims = 0.01887 (above 60% of development providers; patients with >=3 claims at this provider / patients): -0.143 log-odds\n  - median_days_between_patient_claims = 97 (above 49% of development providers; median gap between consecutive claims of the same patient at this provider; 400 if no repeats): -0.132 log-odds\n  - op_share_admit_dx = 0.08333 (above 19% of development providers; outpatient claims with an admit diagnosis / outpatient claims): -0.107 log-odds\nAll other features together: +0.237 log-odds.\nNote: SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "selection_rule": "flagged but labelled \"No\" (false positive)",
+      "label": "No"
+    },
+    "PRV56023": {
+      "provider": "PRV56023",
+      "run_id": "run-20261111-102008",
+      "model": "XGBoost",
+      "risk_score": 0.07594406604766846,
+      "threshold": 0.6426740884780884,
+      "flagged": false,
+      "base_value_log_odds": 0.30229273438453674,
+      "base_score": 0.5750028988986938,
+      "model_log_odds": -2.4987754821777344,
+      "additivity_error": 1.8206635921114156e-09,
+      "top_contributions": [
+        {
+          "feature": "log_total_reimbursed",
+          "group": "Amounts",
+          "value": 11.38589859008789,
+          "dev_percentile": 0.7542,
+          "shap_log_odds": -0.8077189922332764,
+          "direction": "decreases risk score",
+          "description": "log1p(sum of amounts)"
+        },
+        {
+          "feature": "distinct_primary_dx_per_claim",
+          "group": "Coding",
+          "value": 0.976190447807312,
+          "dev_percentile": 0.5389,
+          "shap_log_odds": -0.23788687586784363,
+          "direction": "decreases risk score",
+          "description": "distinct primary diagnoses / claims"
+        },
+        {
+          "feature": "median_days_between_patient_claims",
+          "group": "Timing",
+          "value": 110.0,
+          "dev_percentile": 0.5352,
+          "shap_log_odds": -0.2339656502008438,
+          "direction": "decreases risk score",
+          "description": "median gap between consecutive claims of the same patient at this provider; 400 if no repeats"
+        },
+        {
+          "feature": "ip_log_amt_std",
+          "group": "Amounts",
+          "value": 3.5545942783355713,
+          "dev_percentile": 0.9833,
+          "shap_log_odds": -0.20517146587371826,
+          "direction": "decreases risk score",
+          "description": "std of log1p(amount); 0 if <2 claims"
+        },
+        {
+          "feature": "op_log_amt_max",
+          "group": "Amounts",
+          "value": 8.101981163024902,
+          "dev_percentile": 0.6409,
+          "shap_log_odds": -0.19733332097530365,
+          "direction": "decreases risk score",
+          "description": "max log1p(amount); 0 if none"
+        },
+        {
+          "feature": "ip_mean_log_amount_vs_drg_ref",
+          "group": "Fitted",
+          "value": 0.32540926337242126,
+          "dev_percentile": 0.9421,
+          "shap_log_odds": 0.19700559973716736,
+          "direction": "increases risk score",
+          "description": "mean over paid inpatient claims of log1p(amount) - log1p(training median for the same DRG); 0 if none"
+        },
+        {
+          "feature": "share_patients_3plus_claims",
+          "group": "Timing",
+          "value": 0.0,
+          "dev_percentile": 0.0,
+          "shap_log_odds": -0.19674232602119446,
+          "direction": "decreases risk score",
+          "description": "patients with >=3 claims at this provider / patients"
+        },
+        {
+          "feature": "ip_log_amt_mean",
+          "group": "Amounts",
+          "value": 7.915177345275879,
+          "dev_percentile": 0.6407,
+          "shap_log_odds": -0.13234612345695496,
+          "direction": "decreases risk score",
+          "description": "mean log1p(amount); 0 if no inpatient claims"
+        },
+        {
+          "feature": "op_log_deductible_mean",
+          "group": "Amounts",
+          "value": 0.23789356648921967,
+          "dev_percentile": 0.803,
+          "shap_log_odds": -0.13049250841140747,
+          "direction": "decreases risk score",
+          "description": "mean log1p(deductible); 0 if none"
+        },
+        {
+          "feature": "share_other_physician",
+          "group": "Coding",
+          "value": 0.4761904776096344,
+          "dev_percentile": 0.8441,
+          "shap_log_odds": -0.12592630088329315,
+          "direction": "decreases risk score",
+          "description": "claims with an other physician / claims"
+        }
+      ],
+      "other_features_shap_log_odds": -0.7304904460906982,
+      "split": "test",
+      "disclaimer": "SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "summary": "Provider PRV56023: model risk score 0.076 (below the decision threshold 0.643, so not flagged).\nThe model starts from a baseline of +0.302 log-odds (score 0.575) and the provider's features move it to -2.499 log-odds.\nFeatures that raised the score most:\n  - ip_mean_log_amount_vs_drg_ref = 0.3254 (above 94% of development providers; mean over paid inpatient claims of log1p(amount) - log1p(training median for the same DRG); 0 if none): +0.197 log-odds\nFeatures that lowered the score most:\n  - log_total_reimbursed = 11.39 (above 75% of development providers; log1p(sum of amounts)): -0.808 log-odds\n  - distinct_primary_dx_per_claim = 0.9762 (above 54% of development providers; distinct primary diagnoses / claims): -0.238 log-odds\n  - median_days_between_patient_claims = 110 (above 54% of development providers; median gap between consecutive claims of the same patient at this provider; 400 if no repeats): -0.234 log-odds\n  - ip_log_amt_std = 3.555 (above 98% of development providers; std of log1p(amount); 0 if <2 claims): -0.205 log-odds\n  - op_log_amt_max = 8.102 (above 64% of development providers; max log1p(amount); 0 if none): -0.197 log-odds\n  - share_patients_3plus_claims = 0 (above 0% of development providers; patients with >=3 claims at this provider / patients): -0.197 log-odds\n  - ip_log_amt_mean = 7.915 (above 64% of development providers; mean log1p(amount); 0 if no inpatient claims): -0.132 log-odds\n  - op_log_deductible_mean = 0.2379 (above 80% of development providers; mean log1p(deductible); 0 if none): -0.130 log-odds\n  - share_other_physician = 0.4762 (above 84% of development providers; claims with an other physician / claims): -0.126 log-odds\nAll other features together: -0.730 log-odds.\nNote: SHAP values show how this model arrived at its score for this provider. They are not causal effects and not evidence of fraud. The model reproduces the dataset's provider-level PotentialFraud labels, whose provenance is undocumented, and its score is a class-weighted ranking score, not a calibrated probability.",
+      "selection_rule": "labelled \"Yes\" but lowest score (missed)",
+      "label": "Yes"
+    }
+  },
+  "figures": {
+    "summary_beeswarm": "reports/shap/global/summary_beeswarm.png",
+    "importance_bar": "reports/shap/global/importance_bar.png",
+    "group_contribution": "reports/shap/global/group_contribution.png",
+    "PRV54742_waterfall": "reports/shap/providers/PRV54742_waterfall.png",
+    "PRV54742_contributions": "reports/shap/providers/PRV54742_contributions.png",
+    "PRV55916_waterfall": "reports/shap/providers/PRV55916_waterfall.png",
+    "PRV55916_contributions": "reports/shap/providers/PRV55916_contributions.png",
+    "PRV56023_waterfall": "reports/shap/providers/PRV56023_waterfall.png",
+    "PRV56023_contributions": "reports/shap/providers/PRV56023_contributions.png"
+  }
+}

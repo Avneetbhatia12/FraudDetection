@@ -121,7 +121,7 @@ def main() -> None:
     results = {}
     for name in MODEL_NAMES + ["volume_baseline"]:
         s = pred.score_providers(prep.static, prep.claims, test, model=name)
-        test_df[f"p_{name}"] = s["risk_probability"].to_numpy()
+        test_df[f"p_{name}"] = s["risk_score"].to_numpy()
         thr = float(s["threshold"].iloc[0])
         results[name] = classification_metrics(y_test, test_df[f"p_{name}"], thr) | bootstrap_ci(y_test, test_df[f"p_{name}"].to_numpy())
         results[name]["by_size_test"] = by_size(test_df, f"p_{name}", thr)

@@ -9,7 +9,7 @@ React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via t
                      │  after the claim commits, non-blocking
                      ▼
               ML service (FastAPI, internal only) ──read-only──► MySQL
-                     │  returns: probability, anomaly score, hybrid score, SHAP
+                     │  returns: risk score (uncalibrated), anomaly score, hybrid score, SHAP
                      ▼
               Express stores the result in the CLAIM_RISK_SCORE tables (database/ml_schema.sql)
 ```
@@ -19,8 +19,8 @@ React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via t
 |---|---|---|
 | 0 | Safety net: DB backup, API regression baseline (`tools/smoke`) | Done |
 | 1 | Data foundation: additive schema, synthetic dataset, role middleware | Done (schema not yet applied) |
-| 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level); ablation | **Done, awaiting review.** See [reports/model_comparison.md](reports/model_comparison.md) |
-| 3 | SHAP explanations | |
+| 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level); ablation | Done. See [reports/model_comparison.md](reports/model_comparison.md) |
+| 3 | SHAP explanations for the provider-level XGBoost model | **Done, awaiting review.** See [reports/shap_explanations.md](reports/shap_explanations.md) |
 | 4 | FastAPI service, hybrid engine, Express integration behind `ML_ENABLED` | |
 | 5 | AI dashboard and investigation UI | |
 | 6 | Investigator feedback loop, retraining, deployment | |
@@ -48,6 +48,16 @@ The earlier synthetic-data prototype (commit `c2341d9`) is superseded and recove
 - **Other limitations:** 76 positive test providers (wide CIs); strong link between labels and provider size or inpatient mix;
   one period (2008–09); age, gender and race excluded; dataset fields (ICD-9 codes, physicians) do not exist in the app database.
 
+## Phase 3: SHAP explanations
+- Explains the **saved** Phase 2 XGBoost provider-risk model (no retraining) with exact TreeSHAP (`shap.TreeExplainer`).
+- **Scale:** log-odds. `log-odds = base value + sum of SHAP values`, and the risk score is `sigmoid(log-odds)`. The base value
+  (+0.302, i.e. a score of 0.575) sits far above the ~9% label rate because of class weighting, so the score is a **ranking
+  score, not a calibrated probability**.
+- **Checked:** the SHAP values add up to the model output (error below 1e-5) and match XGBoost's built-in exact contributions,
+  and the explanations are reproducible.
+- SHAP values describe **how the model scored a provider**. They are not causal effects and not evidence of fraud. They apply only to
+  provider-level scores (never claims, never the Isolation Forest).
+
 ## Guarantees (for later integration)
 - **Fail-open:** if this service is down, claims are still created and rule-based flags still work exactly as before.
 - **New claims only:** no automatic backfill.
@@ -71,6 +81,9 @@ py -3.12 -m venv .venv
 # inference with saved artifacts (never retrains)
 .venv/Scripts/python.exe scripts/score.py --providers test
 .venv/Scripts/python.exe scripts/score.py --claims --percentile 95
+# explanations (Phase 3; uses saved artifacts only)
+.venv/Scripts/python.exe training/explain_shap.py                            # reports/shap_explanations.md + reports/shap/*.png
+.venv/Scripts/python.exe scripts/explain_provider.py --provider PRV51001 --top 10 --plots
 # docs and tests
 .venv/Scripts/python.exe scripts/render_feature_docs.py
 .venv/Scripts/python.exe -m unittest discover -s tests -v
@@ -94,6 +107,9 @@ Runs are deterministic (seed 42): re-running `train.py` reproduces the same CV r
 | `fraud_ml/anomaly.py` | Isolation Forest per claim type, configurable thresholds |
 | `fraud_ml/artifacts.py`, `fraud_ml/predict.py` | Artifact storage; inference only (loads, never trains) |
 | `training/train.py`, `ablation.py`, `evaluate.py`, `report.py` | Training, ablation, test evaluation, report rendering |
+| `fraud_ml/explain.py`, `fraud_ml/explain_plots.py` | SHAP provider explanations (global, group, individual, narrative) and plots |
+| `training/explain_shap.py`, `training/shap_report.py` | Phase 3 report and figures (`reports/shap/`) |
+| `scripts/explain_provider.py` | Explain one provider from the command line |
 | `docs/FEATURES.md` | Feature dictionary, generated from the specs |
 | `exploration/` | Dataset exploration report generator |
 | `scripts/` | Data download, documentation rendering, scoring CLI |

@@ -1,10 +1,11 @@
 # Phase 2: provider-level fraud-risk models and claim-level anomaly detection
 
-_Generated 2026-11-11 10:26 UTC from run `run-20261111-102008` (code commit `acd0a23`) by `training/evaluate.py`._
+_Generated 2026-11-11 10:45 UTC from run `run-20261111-102008` (code commit `acd0a23`) by `training/evaluate.py`._
 
 > **Read this first.**
 > - **Dataset:** public Kaggle "Healthcare Provider Fraud Detection Analysis" (CC0 as declared by the uploader). See `reports/dataset_exploration_kaggle.md`.
 > - **Labels:** `PotentialFraud` is a **provider-level** label of **undocumented provenance**. These results measure how well models reproduce *these labels*. They are **not** verified fraud detection, and **not** claim-level fraud accuracy.
+> - **Model outputs are uncalibrated risk scores**, not probabilities of fraud. The classifiers were trained with class weighting, so a score of 0.9 does not mean a 90% chance of anything. Scores rank providers. Thresholds were chosen on development out-of-fold predictions (section 3a).
 > - **Task:** the supervised models predict **provider-level risk at the end of the observation period**. They are not real-time claim-level fraud detectors.
 > - **Isolation Forest** flags statistically **unusual claims**. An anomaly is not a fraud finding.
 

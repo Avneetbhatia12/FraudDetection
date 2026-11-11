@@ -4,8 +4,9 @@ Score providers and/or claims with SAVED artifacts (inference only, no retrainin
     .venv/Scripts/python.exe scripts/score.py --providers test                 # held-out test providers
     .venv/Scripts/python.exe scripts/score.py --claims --percentile 99         # claim anomaly flags, top 1% per claim type
 
-Writes CSVs to artifacts/<run_id>/. Provider scores are the risk of matching the dataset's provider-level
-PotentialFraud label (undocumented provenance). They are not verified fraud findings.
+Writes CSVs to artifacts/<run_id>/. Provider `risk_score` values are uncalibrated ranking scores for matching
+the dataset's provider-level PotentialFraud label (undocumented provenance). They are not probabilities of
+fraud and not verified fraud findings.
 Claim flags mean "unusual for its claim type", not fraud.
 """
 import argparse

@@ -1,8 +1,9 @@
 """
 Inference only: loads saved artifacts, never trains.
 
-  score_providers(): provider-level risk of matching the dataset's PotentialFraud label, at the
-                     end of the observation period. Not a verified fraud finding and not real-time.
+  score_providers(): provider-level `risk_score` for matching the dataset's PotentialFraud label, at the
+                     end of the observation period. An UNCALIBRATED ranking score (the models use class
+                     weighting), not a probability of fraud. Not a verified fraud finding and not real-time.
   score_claims():    claim-level anomaly scores (unusualness, not fraud).
 """
 from __future__ import annotations
@@ -33,7 +34,7 @@ class Predictor:
         b = self.provider_model(model)
         X = provider_matrix(static, claims, self.reference, providers)[b["feature_names"]]
         p = b["model"].predict_proba(X)[:, 1]
-        return pd.DataFrame({"Provider": list(providers), "risk_probability": p, "flagged": (p >= b["threshold"]).astype(int),
+        return pd.DataFrame({"Provider": list(providers), "risk_score": p, "flagged": (p >= b["threshold"]).astype(int),
                              "threshold": b["threshold"], "model": model or self.selected, "run_id": self.run_id})
 
     def anomaly_bundle(self, variant: str = "isolation_forest") -> dict:
