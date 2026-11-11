@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Callable, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query
@@ -36,7 +36,7 @@ from .research import SCOPE, ResearchStore
 from .schemas import ClaimAssessment, Health, ProviderProfile, ResearchEnvelope, Status
 
 SERVICE = "fraud-ml-service"
-VERSION = "0.4.1"   # 0.4.1: indicator set v2 (service-date history, comparison IDs, digest)
+VERSION = "0.4.2"   # 0.4.2: no host-clock timestamps; snapshot_taken_at from the MySQL clock (replaces assessed_at)
 log = logging.getLogger(SERVICE)
 
 
@@ -80,10 +80,13 @@ def create_app(settings: Settings, loader: Optional[Callable[[], AppData]] = Non
     # ── Track 2: live application indicators (read-only) ─────────
     @app.get("/v1/claims/{claim_id}/indicators", response_model=ClaimAssessment, dependencies=[Depends(require_key)], tags=["application"])
     def claim_indicators(claim_id: int = Path(gt=0)):
-        assessed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")   # snapshot time (provenance)
+        # No timestamp from this host's clock. ASSESSED_AT is set by MySQL when the backend stores the assessment;
+        # snapshot_taken_at is MySQL's UTC clock read inside the snapshot (provenance only).
         data = load()
+        taken = data.snapshot_taken_at
         try:
-            return {**assess_claim(data, claim_id), "assessed_at": assessed_at}
+            return {**assess_claim(data, claim_id),
+                    "snapshot_taken_at": taken.isoformat(timespec="seconds") + "Z" if taken else None}
         except KeyError:
             raise HTTPException(status_code=404, detail=f"claim {claim_id} not found")
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "Fraud ML service (internal)",
     "description": "Application-native risk indicators (not ML predictions) and research-only model insights.",
-    "version": "0.4.1"
+    "version": "0.4.2"
   },
   "paths": {
     "/health": {
@@ -517,10 +517,17 @@
             "type": "array",
             "title": "Digest Scope"
           },
-          "assessed_at": {
-            "type": "string",
-            "title": "Assessed At",
-            "description": "UTC time the snapshot was taken (provenance; not part of the digest)"
+          "snapshot_taken_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Taken At",
+            "description": "MySQL server time (UTC, ISO 8601 with Z) when the read-only snapshot was taken. Provenance only; not part of the digest and NOT the stored ASSESSED_AT, which MySQL sets when the backend stores the assessment (the backend must return that stored value, never send its own)."
           }
         },
         "type": "object",
@@ -538,8 +545,7 @@
           "priority_reasons",
           "disclaimer",
           "indicators_digest",
-          "digest_scope",
-          "assessed_at"
+          "digest_scope"
         ],
         "title": "ClaimAssessment"
       },

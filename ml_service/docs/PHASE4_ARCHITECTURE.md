@@ -64,7 +64,7 @@ All `/v1/*` routes require `X-ML-API-Key`. The service refuses to start without 
 |---|---|---|---|
 | GET | `/health` | `{status, service, version}` (no auth, no internals) | — |
 | GET | `/v1/status` | indicator-set version, `application_database: reachable/unreachable`, research availability and run ID | 401 |
-| GET | `/v1/claims/{claim_id}/indicators` | `ClaimAssessment` (`kind: claim_level_indicators`): rule hits, 8 indicators (each with `comparison_claim_ids`), triggered count, review priority + reasons, `snapshot_claim_count`, `prior_history_claim_count`, `indicators_digest` (SHA-256), `digest_scope`, `assessed_at`, disclaimer | 401, 404 unknown claim, 422 invalid ID, 503 DB unavailable (no details leaked) |
+| GET | `/v1/claims/{claim_id}/indicators` | `ClaimAssessment` (`kind: claim_level_indicators`): rule hits, 8 indicators (each with `comparison_claim_ids`), triggered count, review priority + reasons, `snapshot_claim_count`, `prior_history_claim_count`, `indicators_digest` (SHA-256), `digest_scope`, `snapshot_taken_at` (MySQL UTC clock, provenance only; not the stored `ASSESSED_AT`), disclaimer | 401, 404 unknown claim, 422 invalid ID, 503 DB unavailable (no details leaked) |
 | GET | `/v1/providers/{provider_id}/indicators?as_of=YYYY-MM-DD` | `ProviderProfile` (`kind: provider_level_indicators`): 10 indicators with peer references | 401, 404, 422, 503 |
 | GET | `/v1/research/models` | `ResearchEnvelope` (`kind: research_benchmark`, `scope.applies_to_live_application_data: false`): CV/test metrics, ablation, compatible-feature experiment | 401, 503 |
 | GET | `/v1/research/shap/global` | envelope: base value, checks, global and group importance | 401, 503 |
@@ -91,14 +91,14 @@ Existing routes (`/api/claims`, `/api/fraud-*`, …) are unchanged; `POST /api/c
 ## 5. Database (revised `database/ml_schema.sql`, NOT applied)
 
 New objects only: `MODEL_REGISTRY`, `CLAIM_RISK_ASSESSMENT`, `PROVIDER_RISK_PROFILE`, `CLAIM_INVESTIGATION_OUTCOME`; append-only
-triggers on these four tables; the views `CLAIM_LATEST_ASSESSMENT` (latest attempt, may be failed), `CLAIM_LATEST_VALID_ASSESSMENT`
+triggers on the three history tables; clock/version triggers (§5b); the registry seed row `app-indicators-v2` 2.0.0; the views `CLAIM_LATEST_ASSESSMENT` (latest attempt, may be failed), `CLAIM_LATEST_VALID_ASSESSMENT`
 (latest non-failed snapshot = digest baseline), `PROVIDER_LATEST_PROFILE`, `CLAIM_LATEST_OUTCOME`, `OUTCOME_TRAINING_SNAPSHOT`
 (training rule, §5a). `CLAIM_RISK_ASSESSMENT` records `INDICATOR_SET_VERSION`, `SNAPSHOT_CLAIM_COUNT` and `INDICATORS_DIGEST CHAR(64)`
 (replacing the earlier `HISTORY_CUTOFF_CLAIM_ID`); non-failed rows must have all three, with a well-formed digest. No
 probability or combined-score column. CHECK constraints block marking a research model as live, block a supervised
 application model trained on Kaggle data, require an error message on failed rows, and only accept Admin/Investigator outcomes.
 Every table and column is documented inline in the SQL file. Rollback: `database/ml_schema_rollback.sql`.
-Validated in a throwaway schema (applies twice safely; 10 invalid operations rejected; rollback leaves only pre-existing tables).
+Validated on a full copy restored from the pre-migration backup (applies three times safely; invalid operations rejected; existing smoke tests pass before, with and after the migration; rollback leaves every pre-existing object identical).
 
 ### 5a. Claim-history timelines, snapshots and the training rule (indicator set 2.0.0)
 
@@ -106,7 +106,7 @@ Validated in a throwaway schema (applies twice safely; 10 invalid operations rej
 - **Service-date timeline:** prior-history indicators use snapshot claims with `CLAIM_DATE` on or before the assessed claim's date
   (excluding itself); duplicates are searched ±7 calendar days. **`CLAIM_ID` never determines order or history.** Version 1.0.0
   (never deployed) used `CLAIM_ID < claim`; it missed bursts, repeat visits and duplicates entered out of date order.
-- **Snapshots:** each assessment records comparison claim IDs per indicator, the snapshot claim count, `assessed_at`, the indicator-set
+- **Snapshots:** each assessment records comparison claim IDs per indicator, the snapshot claim count, `ASSESSED_AT` (MySQL clock, §5b), the indicator-set
   version and a SHA-256 digest of its deterministic content. Express appends a new snapshot only when the digest differs from
   `CLAIM_LATEST_VALID_ASSESSMENT` and never updates or deletes snapshots. A back-dated claim entered later therefore produces a new
   snapshot for the affected later-dated claims, while the old one is kept.
@@ -117,6 +117,37 @@ Validated in a throwaway schema (applies twice safely; 10 invalid operations rej
   `TRAINING_ASSESSMENT_ID`, `EXCLUSION_REASON` and `IS_TRAINING_ELIGIBLE` (final outcomes with a valid link); and
   `app_risk.snapshots.select_training_snapshot` applies the same rule. Express (4.4) must therefore link the snapshot actually
   displayed when an outcome is recorded. Historical features are **never** recomputed with information entered later.
+
+### 5b. Timestamp policy and version consistency
+
+**One clock: MySQL, in UTC.**
+- `ASSESSED_AT`, `COMPUTED_AT` and `DECIDED_AT` are set by `BEFORE INSERT` triggers to `UTC_TIMESTAMP()` (the MySQL server clock,
+  independent of each session's `time_zone`). A value sent by a client is **overwritten**, so Express and FastAPI cannot
+  introduce a second clock. Express must not send these columns; after inserting it reads the stored row back
+  (`SELECT ... WHERE ASSESSMENT_ID = LAST_INSERT_ID()`) and returns **the stored `ASSESSED_AT` / `DECIDED_AT`**.
+- FastAPI no longer returns `assessed_at`. It returns `snapshot_taken_at`, MySQL's `UTC_TIMESTAMP()` read inside the snapshot
+  transaction (provenance only; not part of the digest, never stored as `ASSESSED_AT`).
+- Strict linking compares two values from the same clock: `ASSESSED_AT <= DECIDED_AT` (same second allowed). Because the
+  assessment is stored before it is shown, a linked decision is always later on that clock.
+- **Conversion and display:** the columns are `DATETIME` holding UTC. The backend pool already uses `timezone: '+00:00'`
+  (`backend/config/db.js`), so mysql2 turns them into correct JavaScript `Date` instants and JSON serialises them as ISO 8601
+  with `Z`. The frontend formats them for display, e.g. `new Date(v).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })`,
+  labelled IST. SQL that compares with "now" must use `UTC_TIMESTAMP()`, never `NOW()`/`CURRENT_TIMESTAMP` (those are IST on
+  this server). Existing application tables only have `DATE` columns and are unaffected.
+- Caveat: `SET TIMESTAMP` in a session changes `UTC_TIMESTAMP()` for that session (used only by the validation tests); the
+  application never issues it.
+
+**Version consistency.** `trg_cra_before_insert` rejects an assessment whose `MODEL_ID` is unknown or not approved for live data
+(`APPLIES_TO_LIVE_DATA = 1`; research models can never be), or whose `INDICATOR_SET_VERSION` differs (exact, byte-wise) from the
+registry row's `VERSION`. `trg_prp_before_insert` applies the live-model rule to provider profiles. `trg_registry_identity_immutable`
+blocks changes to a registry row's key, kind, version, training data, definition, artifact checksum and creation time (only
+`IS_ACTIVE`, `APPLIES_TO_LIVE_DATA`, `DESCRIPTION`, `METRICS` may change), so a stored assessment's `MODEL_ID` always means the
+same version. A new indicator version = a new registry row.
+
+**Registration before the first assessment.** The migration itself inserts `app-indicators-v2` / `2.0.0` (idempotent), with the
+indicator codes and thresholds as `DEFINITION`; `tests/test_app_indicators.py` fails if this seed drifts from `app_risk/config.py`.
+Phase 4.4 Express resolves `MODEL_ID` by `MODEL_KEY = indicator_set` from the FastAPI response and stores
+`INDICATOR_SET_VERSION = indicator_set_version`; a mismatch is rejected by the database, never silently stored.
 
 **Recommended (not executed):** a dedicated read-only MySQL account for the ML service:
 ```sql

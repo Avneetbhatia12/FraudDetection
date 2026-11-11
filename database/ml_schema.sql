@@ -1,18 +1,30 @@
 -- ============================================================
--- AI risk-assessment extension: ADDITIVE ONLY (revised in Phase 4.0)
+-- AI risk-assessment extension: ADDITIVE ONLY (Phase 4; indicator set app-indicators-v2 / 2.0.0)
 -- ============================================================
 -- STATUS: NOT APPLIED. Apply only after explicit approval and a fresh backup:
 --     mysql -u root -p < database/ml_schema.sql
 -- Undo:  mysql -u root -p < database/ml_schema_rollback.sql
 --
 -- Guarantees
---   * Creates NEW tables, views and triggers only. It does NOT alter, drop or write to any existing
---     table (PATIENT, POLICY, MEDICAL_PROVIDER, CLAIM, FRAUD_RULE, CLAIM_RULE, FRAUD_FLAG), the
---     existing trigger trg_after_claim_insert, the procedures/function, or the HIGH_RISK_CLAIMS view.
+--   * Creates NEW tables, views and triggers only, plus one registry row in the new MODEL_REGISTRY
+--     table. It does NOT alter, drop or write to any existing table (PATIENT, POLICY, MEDICAL_PROVIDER,
+--     CLAIM, FRAUD_RULE, CLAIM_RULE, FRAUD_FLAG), the existing trigger trg_after_claim_insert, the
+--     procedures/function, or the HIGH_RISK_CLAIMS view.
 --   * Never changes CLAIM.STATUS or CLAIM.APPROVED_AMOUNT. No column stores a combined fraud score
 --     or a fraud probability. AI output never rejects or approves a claim.
 --   * Assessments, provider profiles and investigation outcomes are APPEND-ONLY (enforced by
 --     BEFORE UPDATE/DELETE triggers on these new tables). A re-run adds a row; the newest row is current.
+--   * STRICT SNAPSHOT LINKING: trigger trg_cio_valid_snapshot rejects an investigation outcome whose linked
+--     assessment belongs to another claim, is a failed attempt, or was assessed after the decision. The
+--     training view OUTCOME_TRAINING_SNAPSHOT applies the same rule and never substitutes another snapshot.
+--   * ONE CLOCK: ASSESSED_AT, COMPUTED_AT and DECIDED_AT are always set by BEFORE INSERT triggers to
+--     UTC_TIMESTAMP() (MySQL server clock, in UTC, independent of the session time zone). Values sent by a
+--     client are overwritten. All AI timestamps are therefore UTC and directly comparable.
+--   * VERSION CONSISTENCY: an assessment's INDICATOR_SET_VERSION must equal the VERSION of its MODEL_REGISTRY
+--     row, and assessments/profiles may only reference a model with APPLIES_TO_LIVE_DATA = 1 (trigger-enforced).
+--     A registry row's identity (key, kind, version, training data, definition, artifact) cannot be changed.
+--   * The active indicator set 'app-indicators-v2' (2.0.0) is registered by this script (section 7), so it
+--     exists before any assessment can be stored.
 --   * Research models trained on public data cannot be marked as applicable to live application data
 --     (CHECK constraint on MODEL_REGISTRY).
 --   * No synthetic or public dataset records are ever stored here.
@@ -42,7 +54,7 @@ CREATE TABLE IF NOT EXISTS MODEL_REGISTRY (
     METRICS              JSON         NULL,               -- evaluation results (research/supervised models)
     ARTIFACT_SHA256      CHAR(64)     NULL,               -- checksum of the model file, if any
     IS_ACTIVE            TINYINT(1)   NOT NULL DEFAULT 0, -- the version currently used for its kind
-    CREATED_AT           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CREATED_AT           DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),   -- UTC
     CONSTRAINT chk_registry_research_not_live
         CHECK (NOT (MODEL_KIND = 'research_benchmark' AND APPLIES_TO_LIVE_DATA = 1)),
     CONSTRAINT chk_registry_research_data
@@ -63,10 +75,13 @@ CREATE TABLE IF NOT EXISTS CLAIM_RISK_ASSESSMENT (
                                 'insufficient_data',       -- no indicator could be computed
                                 'failed')                  -- ML service error / timeout; ERROR_MESSAGE set
                            NOT NULL,
-    INDICATOR_SET_VERSION  VARCHAR(32)  NULL,              -- e.g. '2.0.0' (also via MODEL_ID); part of the digest
+    INDICATOR_SET_VERSION  VARCHAR(32)  NULL,              -- e.g. '2.0.0'; part of the digest. Must equal MODEL_REGISTRY.VERSION of
+                                                           -- MODEL_ID (trg_cra_before_insert); NULL only for failed attempts.
     SNAPSHOT_CLAIM_COUNT   INT          NULL,              -- claims visible in the read-only snapshot used (provenance; NOT in the digest)
     INDICATORS_DIGEST      CHAR(64)     NULL,              -- SHA-256 of the deterministic assessment content (see ml_service/app_risk/snapshots.py).
-                                                           -- A new row is appended only when this differs from the claim's latest digest.
+                                                           -- A new row is appended only when this differs from the digest of the claim's
+                                                           -- latest NON-FAILED assessment (view CLAIM_LATEST_VALID_ASSESSMENT); failed
+                                                           -- attempts have no digest and are never the baseline.
     RULE_HITS              JSON         NULL,              -- snapshot of CLAIM_RULE at assessment time: [{rule_id, rule_name}]
     INDICATORS             JSON         NULL,              -- [{code, level, value, reference, threshold, status, triggered, reason,
                                                            --   comparison_claim_ids}]: the IDs are the audit trail of what was compared
@@ -76,7 +91,7 @@ CREATE TABLE IF NOT EXISTS CLAIM_RISK_ASSESSMENT (
     ERROR_MESSAGE          VARCHAR(500) NULL,
     TRIGGER_SOURCE         ENUM('on_view','manual_recompute','batch') NOT NULL DEFAULT 'on_view',
     REQUESTED_BY_USER_ID   INT          NULL,              -- application user id from the JWT (users are not a DB table)
-    ASSESSED_AT            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ASSESSED_AT            DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),  -- UTC, always set by trg_cra_before_insert
     CONSTRAINT fk_cra_claim FOREIGN KEY (CLAIM_ID) REFERENCES CLAIM(CLAIM_ID),
     CONSTRAINT fk_cra_model FOREIGN KEY (MODEL_ID) REFERENCES MODEL_REGISTRY(MODEL_ID),
     CONSTRAINT chk_cra_failed_has_error CHECK (ASSESSMENT_STATUS <> 'failed' OR ERROR_MESSAGE IS NOT NULL),
@@ -100,7 +115,7 @@ CREATE TABLE IF NOT EXISTS PROVIDER_RISK_PROFILE (
     CLAIM_COUNT    INT          NULL,                      -- claims used (convenience snapshot)
     INDICATORS     JSON         NULL,                      -- [{code, value, peer_reference, status, triggered, reason}]
     ERROR_MESSAGE  VARCHAR(500) NULL,
-    COMPUTED_AT    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    COMPUTED_AT    DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),    -- UTC, always set by trg_prp_before_insert
     CONSTRAINT fk_prp_provider FOREIGN KEY (PROVIDER_ID) REFERENCES MEDICAL_PROVIDER(PROVIDER_ID),
     CONSTRAINT fk_prp_model    FOREIGN KEY (MODEL_ID)    REFERENCES MODEL_REGISTRY(MODEL_ID),
     CONSTRAINT chk_prp_failed_has_error CHECK (PROFILE_STATUS <> 'failed' OR ERROR_MESSAGE IS NOT NULL),
@@ -124,7 +139,7 @@ CREATE TABLE IF NOT EXISTS CLAIM_INVESTIGATION_OUTCOME (
     DECIDED_BY_EMAIL   VARCHAR(100) NOT NULL,
     DECIDED_BY_ROLE    VARCHAR(30)  NOT NULL,
     ASSESSMENT_ID      INT          NULL,                  -- the assessment the investigator was looking at, if any
-    DECIDED_AT         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    DECIDED_AT         DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),  -- UTC, always set by trg_cio_valid_snapshot
     CONSTRAINT fk_cio_claim      FOREIGN KEY (CLAIM_ID)      REFERENCES CLAIM(CLAIM_ID),
     CONSTRAINT fk_cio_assessment FOREIGN KEY (ASSESSMENT_ID) REFERENCES CLAIM_RISK_ASSESSMENT(ASSESSMENT_ID),
     CONSTRAINT chk_cio_role CHECK (DECIDED_BY_ROLE IN ('Admin','Investigator')),
@@ -133,9 +148,58 @@ CREATE TABLE IF NOT EXISTS CLAIM_INVESTIGATION_OUTCOME (
 );
 
 -- ------------------------------------------------------------
--- 5. Append-only enforcement (triggers on the NEW tables only)
+-- 5. Triggers (on the NEW tables only): one clock, version consistency, append-only, strict linking
 -- ------------------------------------------------------------
+-- Timestamp policy: MySQL is the single source of truth. Every BEFORE INSERT trigger below sets the row's time
+-- column to UTC_TIMESTAMP() (server clock, UTC, unaffected by the session time_zone) and overwrites any value a
+-- client supplied. Callers must not send ASSESSED_AT, COMPUTED_AT or DECIDED_AT; they read the stored value back.
 DELIMITER $$
+-- Model/version consistency: an assessment must reference a registry entry that is approved for live application
+-- data, and (when present) its INDICATOR_SET_VERSION must equal that entry's VERSION, compared exactly.
+DROP TRIGGER IF EXISTS trg_cra_before_insert$$
+CREATE TRIGGER trg_cra_before_insert BEFORE INSERT ON CLAIM_RISK_ASSESSMENT FOR EACH ROW
+BEGIN
+    DECLARE v_version VARCHAR(32);
+    DECLARE v_live TINYINT;
+    SET NEW.ASSESSED_AT = UTC_TIMESTAMP();
+    SET v_version = (SELECT r.VERSION FROM MODEL_REGISTRY r WHERE r.MODEL_ID = NEW.MODEL_ID);
+    SET v_live    = (SELECT r.APPLIES_TO_LIVE_DATA FROM MODEL_REGISTRY r WHERE r.MODEL_ID = NEW.MODEL_ID);
+    IF v_version IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Assessment references an unknown MODEL_ID';
+    END IF;
+    IF v_live <> 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Assessment model is not approved for live application data';
+    END IF;
+    IF NEW.INDICATOR_SET_VERSION IS NOT NULL
+       AND CAST(NEW.INDICATOR_SET_VERSION AS BINARY) <> CAST(v_version AS BINARY) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INDICATOR_SET_VERSION does not match the referenced MODEL_REGISTRY version';
+    END IF;
+END$$
+DROP TRIGGER IF EXISTS trg_prp_before_insert$$
+CREATE TRIGGER trg_prp_before_insert BEFORE INSERT ON PROVIDER_RISK_PROFILE FOR EACH ROW
+BEGIN
+    SET NEW.COMPUTED_AT = UTC_TIMESTAMP();
+    IF COALESCE((SELECT r.APPLIES_TO_LIVE_DATA FROM MODEL_REGISTRY r WHERE r.MODEL_ID = NEW.MODEL_ID), 0) <> 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Provider profile model is unknown or not approved for live application data';
+    END IF;
+END$$
+-- A registry row's identity is immutable once created (stored assessments refer to it by MODEL_ID). Only
+-- IS_ACTIVE, APPLIES_TO_LIVE_DATA, DESCRIPTION and METRICS may change; a new version needs a new row.
+DROP TRIGGER IF EXISTS trg_registry_identity_immutable$$
+CREATE TRIGGER trg_registry_identity_immutable BEFORE UPDATE ON MODEL_REGISTRY FOR EACH ROW
+BEGIN
+    IF NOT (NEW.MODEL_ID = OLD.MODEL_ID
+            AND CAST(NEW.MODEL_KEY AS BINARY) = CAST(OLD.MODEL_KEY AS BINARY)
+            AND NEW.MODEL_KIND = OLD.MODEL_KIND
+            AND CAST(NEW.VERSION AS BINARY) = CAST(OLD.VERSION AS BINARY)
+            AND NEW.TRAINING_DATA = OLD.TRAINING_DATA
+            AND NEW.DEFINITION = OLD.DEFINITION
+            AND NEW.ARTIFACT_SHA256 <=> OLD.ARTIFACT_SHA256
+            AND NEW.CREATED_AT = OLD.CREATED_AT) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
+            'MODEL_REGISTRY identity (key, kind, version, training data, definition, artifact) is immutable; register a new row';
+    END IF;
+END$$
 DROP TRIGGER IF EXISTS trg_cra_no_update$$
 CREATE TRIGGER trg_cra_no_update BEFORE UPDATE ON CLAIM_RISK_ASSESSMENT FOR EACH ROW
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CLAIM_RISK_ASSESSMENT is append-only'$$
@@ -148,16 +212,18 @@ CREATE TRIGGER trg_prp_no_update BEFORE UPDATE ON PROVIDER_RISK_PROFILE FOR EACH
 DROP TRIGGER IF EXISTS trg_prp_no_delete$$
 CREATE TRIGGER trg_prp_no_delete BEFORE DELETE ON PROVIDER_RISK_PROFILE FOR EACH ROW
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PROVIDER_RISK_PROFILE is append-only'$$
--- Reject an outcome whose linked snapshot is for another claim, is a failed attempt, or was assessed after the
--- decision. An outcome with no link (ASSESSMENT_ID NULL) is allowed but excluded from training.
+-- Strict snapshot linking. DECIDED_AT is first set from the MySQL clock (same clock as ASSESSED_AT), then an outcome
+-- whose linked snapshot is for another claim, is a failed attempt, or was assessed after the decision is rejected.
+-- An outcome with no link (ASSESSMENT_ID NULL) is allowed but excluded from training.
 DROP TRIGGER IF EXISTS trg_cio_valid_snapshot$$
 CREATE TRIGGER trg_cio_valid_snapshot BEFORE INSERT ON CLAIM_INVESTIGATION_OUTCOME FOR EACH ROW
 BEGIN
+    SET NEW.DECIDED_AT = UTC_TIMESTAMP();
     IF NEW.ASSESSMENT_ID IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM CLAIM_RISK_ASSESSMENT a
         WHERE a.ASSESSMENT_ID = NEW.ASSESSMENT_ID AND a.CLAIM_ID = NEW.CLAIM_ID
           AND a.ASSESSMENT_STATUS <> 'failed'
-          AND a.ASSESSED_AT <= COALESCE(NEW.DECIDED_AT, CURRENT_TIMESTAMP)) THEN
+          AND a.ASSESSED_AT <= NEW.DECIDED_AT) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
             'Linked assessment must be a non-failed snapshot of the same claim assessed at or before the decision';
     END IF;
@@ -224,3 +290,20 @@ SELECT x.*, (x.OUTCOME IN ('Confirmed Fraud','Legitimate')) AS IS_LABEL_CANDIDAT
     SELECT o.*, ROW_NUMBER() OVER (PARTITION BY o.CLAIM_ID ORDER BY o.DECIDED_AT DESC, o.OUTCOME_ID DESC) AS RN
     FROM CLAIM_INVESTIGATION_OUTCOME o) x
 WHERE RN = 1;
+
+-- ------------------------------------------------------------
+-- 7. Registry seed: the active application indicator set, registered before any assessment can exist.
+--    Must match ml_service/app_risk/config.py (INDICATOR_SET_KEY, INDICATOR_SET_VERSION, thresholds) and
+--    the indicator codes in app_risk/indicators.py; ml_service/tests/test_app_indicators.py checks this.
+--    Idempotent: inserted only if MODEL_KEY 'app-indicators-v2' is not registered yet.
+-- ------------------------------------------------------------
+INSERT INTO MODEL_REGISTRY (MODEL_KEY, MODEL_KIND, VERSION, TRAINING_DATA, APPLIES_TO_LIVE_DATA, DESCRIPTION, DEFINITION, IS_ACTIVE)
+SELECT 'app-indicators-v2', 'app_indicator_set', '2.0.0', 'none', 1,
+       'Application-native transparent risk indicators (not machine learning). Service-date history within a read-only snapshot; thresholds are configured design choices, not learned.',
+       CAST(
+-- seed-definition-begin
+'{"indicator_set":"app-indicators-v2","version":"2.0.0","source":"ml_service/app_risk","documentation":"ml_service/docs/APP_INDICATORS.md","claim_indicators":["coverage_share","outside_policy_period","amount_vs_diagnosis_median","diagnosis_new_for_provider_type","patient_claims_prior_30d","days_since_patient_previous_claim","near_duplicate_claims","provider_volume_surge"],"provider_indicators":["claim_count","distinct_patients","active_months","claims_per_patient","claims_per_active_month","share_same_day_repeat","median_days_between_patient_claims","share_patients_3plus_claims","patient_mean_other_providers","rule_flag_rate"],"thresholds":{"COVERAGE_SHARE_THRESHOLD":0.5,"DIAGNOSIS_RATIO_THRESHOLD":3.0,"DUPLICATE_AMOUNT_TOLERANCE":0.01,"DUPLICATE_WINDOW_DAYS":7,"MIN_DIAGNOSIS_HISTORY":5,"MIN_PEERS":10,"MIN_PROVIDER_BASELINE_CLAIMS":5,"MIN_PROVIDER_CLAIMS":5,"MIN_PROVIDER_TYPE_HISTORY":10,"PATIENT_30D_THRESHOLD":3,"PEER_HIGH_PERCENTILE":90,"PEER_LOW_PERCENTILE":10,"PROVIDER_SURGE_MIN_COUNT":3,"PROVIDER_SURGE_MULTIPLIER":3.0,"REPEAT_VISIT_DAYS_THRESHOLD":7}}'
+-- seed-definition-end
+       AS JSON), 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM MODEL_REGISTRY WHERE MODEL_KEY = 'app-indicators-v2');

@@ -38,15 +38,16 @@ def main() -> None:
           "Indicator set 1.0.0 used \"`CLAIM_ID` < assessed claim\" as history and missed claims entered out of date order. It was never deployed; 2.0.0 replaces it.", "",
           "## Snapshots, digest and audit trail", "",
           "Each claim assessment carries `snapshot_claim_count` (claims visible in the snapshot), `prior_history_claim_count`, "
-          "`comparison_claim_ids` on every indicator (exactly which claims were compared), `indicator_set_version`, `assessed_at` "
-          "(added by the service) and `indicators_digest`: SHA-256 of the canonical JSON of the deterministic content "
+          "`comparison_claim_ids` on every indicator (exactly which claims were compared), `indicator_set_version`, `snapshot_taken_at` "
+          "(MySQL UTC clock at snapshot time) and `indicators_digest`: SHA-256 of the canonical JSON of the deterministic content "
           "(claim, indicator set and version, status, rule hits, all indicator results including comparison IDs, triggered count, "
           "priority and reasons).", "",
-          "`assessed_at`, the snapshot counts and the disclaimer are provenance, **not** part of the digest. A claim added anywhere "
+          "`snapshot_taken_at`, the snapshot counts and the disclaimer are provenance, **not** part of the digest. A claim added anywhere "
           "else would otherwise create a new snapshot for every claim, while any change that matters to this claim already "
           "changes its indicator values or comparison IDs.", "",
           "**Append-only:** a new snapshot is stored only when its digest differs from the claim's latest **non-failed** snapshot "
-          "(`CLAIM_LATEST_VALID_ASSESSMENT`). Snapshots are never updated or deleted (database triggers).", "",
+          "(`CLAIM_LATEST_VALID_ASSESSMENT`). Snapshots are never updated or deleted (database triggers). The stored `ASSESSED_AT` "
+          "is set by MySQL (`UTC_TIMESTAMP()`) on insert, as is the outcome's `DECIDED_AT`: one clock for both.", "",
           "## Training-data rule (Track 3)", "",
           "**Strict linking only.** An outcome is usable for supervised training only with the **exact snapshot linked to it** "
           "(`ASSESSMENT_ID`, the one the investigator was shown), and only if that snapshot belongs to the same claim, is not a failed "

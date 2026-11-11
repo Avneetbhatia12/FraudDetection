@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 
@@ -46,9 +48,12 @@ class AppData:
     policies: pd.DataFrame
     providers: pd.DataFrame
     rule_hits: pd.DataFrame
+    # MySQL server time (UTC_TIMESTAMP(), naive UTC) read inside the snapshot transaction. Provenance only: it is NOT
+    # the stored ASSESSED_AT, which MySQL sets itself when the backend stores an assessment.
+    snapshot_taken_at: Optional[datetime] = None
 
     @classmethod
-    def from_frames(cls, claims, policies, providers, rule_hits) -> "AppData":
+    def from_frames(cls, claims, policies, providers, rule_hits, snapshot_taken_at: Optional[datetime] = None) -> "AppData":
         for name, df in (("claims", claims), ("policies", policies), ("providers", providers), ("rule_hits", rule_hits)):
             bad = FORBIDDEN_COLUMNS & set(map(str.upper, df.columns))
             if bad:
@@ -69,7 +74,7 @@ class AppData:
         c["DX"] = c["DIAGNOSIS"].map(normalize_diagnosis)
         c = c.sort_values("CLAIM_ID").reset_index(drop=True)
         return cls(claims=c, policies=p.set_index("POLICY_ID", drop=False), providers=v.set_index("PROVIDER_ID", drop=False),
-                   rule_hits=r)
+                   rule_hits=r, snapshot_taken_at=snapshot_taken_at)
 
 
 def load_from_mysql(host: str, port: int, user: str, password: str, database: str, connect_timeout: int = 5) -> AppData:
@@ -82,6 +87,8 @@ def load_from_mysql(host: str, port: int, user: str, password: str, database: st
             cur.execute("SET SESSION TRANSACTION READ ONLY")
             # One consistent InnoDB snapshot for all four queries = the assessment's "knowledge" timeline.
             cur.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY")
+            cur.execute("SELECT UTC_TIMESTAMP() AS T")   # MySQL clock (UTC), the only clock used for AI timestamps
+            snapshot_taken_at = cur.fetchone()["T"]
             frames = {}
             for name, sql in SQL.items():
                 cur.execute(sql)
@@ -91,6 +98,7 @@ def load_from_mysql(host: str, port: int, user: str, password: str, database: st
         for k, cols in empty.items():
             if frames[k].empty:
                 frames[k] = pd.DataFrame(columns=cols)
-        return AppData.from_frames(frames["claims"], frames["policies"], frames["providers"], frames["rule_hits"])
+        return AppData.from_frames(frames["claims"], frames["policies"], frames["providers"], frames["rule_hits"],
+                                   snapshot_taken_at=snapshot_taken_at)
     finally:
         conn.close()

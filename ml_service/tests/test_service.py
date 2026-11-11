@@ -5,7 +5,7 @@ Run from ml_service/:  .venv/Scripts/python.exe -m unittest tests.test_service -
 """
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -30,7 +30,7 @@ def fixture_data() -> AppData:
     claims = pd.DataFrame([(1, "2024-02-01", 100.0, "Flu", 1, 1), (2, "2024-02-03", 6000.0, "Flu", 1, 1)],
                           columns=["CLAIM_ID", "CLAIM_DATE", "CLAIM_AMOUNT", "DIAGNOSIS", "POLICY_ID", "PROVIDER_ID"])
     rules = pd.DataFrame([{"CLAIM_ID": 2, "RULE_ID": 1, "RULE_NAME": "High Claim Amount"}])
-    return AppData.from_frames(claims, pol, prov, rules)
+    return AppData.from_frames(claims, pol, prov, rules, snapshot_taken_at=datetime(2024, 6, 1, 3, 30))  # MySQL UTC_TIMESTAMP()
 
 
 def failing_loader():
@@ -70,10 +70,13 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(b["rule_hits"], [{"rule_id": 1, "rule_name": "High Claim Amount"}])
         self.assertEqual((b["snapshot_claim_count"], b["prior_history_claim_count"]), (2, 1))
         self.assertRegex(b["indicators_digest"], r"^[0-9a-f]{64}$")
-        self.assertTrue(b["assessed_at"].endswith("+00:00"))
+        # Timestamp policy: no host-clock time; the MySQL snapshot time is passed through as UTC, and nothing is
+        # called assessed_at (ASSESSED_AT is set by MySQL when the backend stores the assessment).
+        self.assertEqual(b["snapshot_taken_at"], "2024-06-01T03:30:00Z")
+        self.assertNotIn("assessed_at", b)
         self.assertNotIn("history_cutoff_claim_id", b)
         self.assertTrue(all("comparison_claim_ids" in i for i in b["indicators"]))
-        # digest is computed over content only: two calls (different assessed_at) give the same digest
+        # digest is computed over content only (snapshot_taken_at is provenance, not in the digest)
         self.assertEqual(self.client.get("/v1/claims/2/indicators", headers=H).json()["indicators_digest"], b["indicators_digest"])
         self.assertEqual(len(b["indicators"]), 8)
         self.assertNotIn("scope", b)

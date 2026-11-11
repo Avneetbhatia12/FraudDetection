@@ -43,7 +43,10 @@ class ClaimAssessment(BaseModel):
     indicators_digest: str = Field(pattern=r"^[0-9a-f]{64}$",
                                    description="SHA-256 of the deterministic assessment content (fields in digest_scope)")
     digest_scope: list[str]
-    assessed_at: str = Field(description="UTC time the snapshot was taken (provenance; not part of the digest)")
+    snapshot_taken_at: Optional[str] = Field(
+        None, description="MySQL server time (UTC, ISO 8601 with Z) when the read-only snapshot was taken. Provenance only; "
+                          "not part of the digest and NOT the stored ASSESSED_AT, which MySQL sets when the backend stores "
+                          "the assessment (the backend must return that stored value, never send its own).")
 
 
 class ProviderProfile(BaseModel):

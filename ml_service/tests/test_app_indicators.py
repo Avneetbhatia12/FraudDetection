@@ -345,6 +345,54 @@ def _db_available():
 
 
 @unittest.skipUnless(_db_available(), "application MySQL database not reachable")
+class MigrationContractTests(unittest.TestCase):
+    """Static checks that database/ml_schema.sql agrees with the code (no database needed)."""
+    SQL_TEXT = (ROOT.parent / "database" / "ml_schema.sql").read_text(encoding="utf-8")
+
+    def code(self):  # SQL without comments
+        import re
+        return re.sub(r"--[^\n]*", "", self.SQL_TEXT)
+
+    def test_registry_seed_matches_indicator_config(self):
+        import json
+        import re
+        m = re.search(r"-- seed-definition-begin\n'(.*)'\n-- seed-definition-end", self.SQL_TEXT)
+        self.assertIsNotNone(m, "seed definition markers not found")
+        d = json.loads(m.group(1))
+        self.assertEqual((d["indicator_set"], d["version"]), (C.INDICATOR_SET_KEY, C.INDICATOR_SET_VERSION))
+        self.assertEqual(d["claim_indicators"], list(CLAIM_SPEC))
+        self.assertEqual(d["provider_indicators"], list(PROVIDER_SPEC))
+        want = {k: getattr(C, k) for k in dir(C) if k.isupper() and k not in ("FORBIDDEN_COLUMNS", "INDICATOR_SET_KEY", "INDICATOR_SET_VERSION")}
+        self.assertEqual(d["thresholds"], want)
+        seed = re.search(r"SELECT '([^']+)', 'app_indicator_set', '([^']+)', 'none', 1,", self.SQL_TEXT)
+        self.assertEqual(seed.groups(), (C.INDICATOR_SET_KEY, C.INDICATOR_SET_VERSION))
+        self.assertIn(f"WHERE MODEL_KEY = '{C.INDICATOR_SET_KEY}'", self.SQL_TEXT)
+
+    def test_single_mysql_utc_clock(self):
+        code = self.code()
+        self.assertNotIn("CURRENT_TIMESTAMP", code.upper())
+        self.assertNotIn("NOW()", code.upper())
+        for col, trig in (("ASSESSED_AT", "trg_cra_before_insert"), ("COMPUTED_AT", "trg_prp_before_insert"),
+                          ("DECIDED_AT", "trg_cio_valid_snapshot")):
+            self.assertIn(f"SET NEW.{col} = UTC_TIMESTAMP();", code, col)
+            self.assertIn(f"CREATE TRIGGER {trig} BEFORE INSERT", code, trig)
+
+    def test_version_consistency_trigger_present(self):
+        code = self.code()
+        self.assertIn("CAST(NEW.INDICATOR_SET_VERSION AS BINARY) <> CAST(v_version AS BINARY)", code)
+        self.assertIn("CREATE TRIGGER trg_registry_identity_immutable BEFORE UPDATE ON MODEL_REGISTRY", code)
+
+    def test_rollback_drops_every_trigger_and_view_the_migration_creates(self):
+        import re
+        rb = (ROOT.parent / "database" / "ml_schema_rollback.sql").read_text(encoding="utf-8")
+        code = self.code()
+        for kind in ("TRIGGER", "VIEW"):
+            created = set(re.findall(rf"CREATE (?:OR REPLACE )?{kind} (\w+)", code))
+            dropped = set(re.findall(rf"DROP {kind} IF EXISTS (\w+)", rb))
+            self.assertTrue(created, kind)
+            self.assertEqual(created, dropped, kind)
+
+
 class LiveDatabaseReadOnlyTests(unittest.TestCase):
     """Read-only checks against the real application database. Nothing is written."""
 
