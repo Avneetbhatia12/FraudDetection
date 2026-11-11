@@ -1,5 +1,5 @@
 # Phase 2 (data processing, supervised models, anomaly detection). Python 3.12.
-# Later phases add their own dependencies (SHAP in Phase 3; API server in Phase 4).
+# Phase 3 adds SHAP explanations and plotting. Later phases add their own dependencies (API server in Phase 4).
 # numpy is held at 2.0.x so a later SHAP install (numba) stays compatible.
 # scipy is pinned because newer releases emit OptimizeWarnings with scikit-learn 1.5.x.
 numpy==2.0.2
@@ -8,3 +8,6 @@ pandas==2.2.3
 scikit-learn==1.5.2
 xgboost==2.1.3
 joblib==1.4.2
+# Phase 3: explainability (shap 0.46 works with numpy 2.0.x and xgboost 2.1.x; verified by tests/test_explain.py)
+shap==0.46.0
+matplotlib==3.9.2
