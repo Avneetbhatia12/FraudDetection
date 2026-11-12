@@ -27,10 +27,16 @@ const ProviderDetails = () => {
                   <p style={{ margin: '0.25rem 0 0', color: '#6b7280' }}>{p.PROVIDER_TYPE} · {p.CONTACT_NUMBER}</p>
                 </div>
               </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button onClick={() => navigate(`/ai-insights/providers/${id}`)}
+                style={{ padding: '0.5rem 1rem', background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}>
+                🧭 AI risk profile
+              </button>
               <button onClick={() => navigate(`/providers/${id}/edit`)}
                 style={{ padding: '0.5rem 1rem', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}>
                 Edit Provider
               </button>
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
               {[

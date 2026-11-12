@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 const api = axios.create({
+  // REACT_APP_API_URL: backend origin for split deployments (set at build time). Unset/empty: same-origin '/api'
+  // (local development uses the package.json proxy).
   baseURL: process.env.REACT_APP_API_URL
-    ? `${process.env.REACT_APP_API_URL}/api`
+    ? `${process.env.REACT_APP_API_URL.replace(/\/+$/, '')}/api`
     : '/api',
 });
 

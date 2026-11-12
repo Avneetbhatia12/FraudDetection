@@ -43,6 +43,12 @@ import UserForm    from './pages/users/UserForm';
 // Reports
 import Reports from './pages/reports/Reports';
 
+// AI insights (Phase 5)
+import AiDashboard         from './pages/ai/AiDashboard';
+import ClaimAssessmentPage from './pages/ai/ClaimAssessmentPage';
+import ProviderRiskPage    from './pages/ai/ProviderRiskPage';
+import ResearchPage        from './pages/ai/ResearchPage';
+
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
@@ -83,6 +89,11 @@ const AppRoutes = () => (
     <Route path="/fraud-rules/:id/edit" element={<PrivateRoute><FraudRuleForm /></PrivateRoute>} />
 
     <Route path="/reports"         element={<PrivateRoute><Reports /></PrivateRoute>} />
+
+    <Route path="/ai-insights"               element={<PrivateRoute><AiDashboard /></PrivateRoute>} />
+    <Route path="/ai-insights/claims/:id"    element={<PrivateRoute><ClaimAssessmentPage /></PrivateRoute>} />
+    <Route path="/ai-insights/providers/:id" element={<PrivateRoute><ProviderRiskPage /></PrivateRoute>} />
+    <Route path="/research"                  element={<PrivateRoute><ResearchPage /></PrivateRoute>} />
 
     <Route path="/users"           element={<PrivateRoute><UserList /></PrivateRoute>} />
     <Route path="/users/new"       element={<PrivateRoute><UserForm /></PrivateRoute>} />

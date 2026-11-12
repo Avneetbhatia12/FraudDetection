@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../tables/StatusBadge';
 import RiskBadge from '../tables/RiskBadge';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 
 const RecentClaimsTable = ({ claims = [] }) => {
   const navigate = useNavigate();
