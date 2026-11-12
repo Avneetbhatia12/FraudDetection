@@ -5,23 +5,24 @@ MySQL rule engine (`trg_after_claim_insert`). It never replaces or modifies the 
 `FRAUD_FLAG`, `CLAIM_RULE` or claim decisions.
 
 ```
-React ──► Express (only gateway, JWT + roles) ──► MySQL (rules via trigger, unchanged)
-                     │  after the claim commits, non-blocking
+React ──JWT──► Express /api/ai (only gateway; auth + roles; the only writer of AI records)
+                     │  X-ML-API-Key, 3 s timeout, circuit breaker
                      ▼
               ML service (FastAPI, internal only) ──read-only──► MySQL
-                     │  returns: risk score (uncalibrated), anomaly score, hybrid score, SHAP
+                     │  returns: transparent indicators + review priority (Track 2), Kaggle research results (Track 1)
                      ▼
-              Express stores the result in the CLAIM_RISK_SCORE tables (database/ml_schema.sql)
+              Express appends snapshots to CLAIM_RISK_ASSESSMENT / PROVIDER_RISK_PROFILE (only if changed) and
+              investigator decisions to CLAIM_INVESTIGATION_OUTCOME (database/ml_schema.sql). SQL rules unchanged.
 ```
 
 ## Status
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Safety net: DB backup, API regression baseline (`tools/smoke`) | Done |
-| 1 | Data foundation: additive schema, synthetic dataset, role middleware | Done (schema not yet applied) |
+| 1 | Data foundation: additive schema, synthetic dataset, role middleware | Done (schema revised and applied in Phase 4) |
 | 2 | Public dataset; preprocessing and features; LR / RF / XGBoost (provider level); Isolation Forest (claim level); ablation | Done. See [reports/model_comparison.md](reports/model_comparison.md) |
 | 3 | SHAP explanations for the provider-level XGBoost model | Done. See [reports/shap_explanations.md](reports/shap_explanations.md) |
-| 4 | Three-track integration: research module, app-native indicators, outcome collection | **4.0–4.2 done, awaiting review** (Express, migration and UI pending). See [docs/PHASE4_ARCHITECTURE.md](docs/PHASE4_ARCHITECTURE.md) |
+| 4 | Three-track integration: research module, app-native indicators, outcome collection | 4.0–4.3 done (migration applied 2026-11-11); **4.4 Express integration implemented, awaiting review**; UI is Phase 5. See [docs/PHASE4_ARCHITECTURE.md](docs/PHASE4_ARCHITECTURE.md) |
 | 5 | AI dashboard and investigation UI | |
 | 6 | Investigator feedback loop, retraining, deployment | |
 

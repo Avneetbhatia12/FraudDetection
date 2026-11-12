@@ -344,7 +344,45 @@ def _db_available():
         return False
 
 
-@unittest.skipUnless(_db_available(), "application MySQL database not reachable")
+class AppDatePolicyTests(unittest.TestCase):
+    """Default provider as-of date = today's IST date on the MySQL clock; never the host's local date."""
+
+    def test_ist_midnight_boundary(self):
+        from datetime import datetime, timedelta, timezone
+        from app_risk.dates import app_date
+        self.assertEqual(app_date(datetime(2026, 11, 11, 18, 29, 59)), date(2026, 11, 11))   # 23:59:59 IST
+        self.assertEqual(app_date(datetime(2026, 11, 11, 18, 30, 0)), date(2026, 11, 12))    # 00:00:00 IST next day
+        self.assertEqual(app_date(datetime(2026, 11, 12, 0, 0, tzinfo=timezone(timedelta(hours=5, minutes=30)))), date(2026, 11, 12))
+        self.assertEqual(app_date(datetime(2026, 11, 11, 18, 30, tzinfo=timezone.utc)), date(2026, 11, 12))
+
+    def test_provider_default_uses_mysql_snapshot_instant(self):
+        from datetime import datetime
+        rows = [(1, "2024-06-01", 100.0, "Flu", 1, 1), (2, "2024-06-02", 100.0, "Flu", 1, 1)]
+        pol = pd.DataFrame([{"POLICY_ID": 1, "POLICY_TYPE": "Individual", "START_DATE": date(2024, 1, 1), "END_DATE": date(2024, 12, 31),
+                             "COVERAGE_AMOUNT": 10000, "PATIENT_ID": 7}])
+        prov = pd.DataFrame([{"PROVIDER_ID": 1, "PROVIDER_TYPE": "Clinic"}])
+        cl = pd.DataFrame(rows, columns=["CLAIM_ID", "CLAIM_DATE", "CLAIM_AMOUNT", "DIAGNOSIS", "POLICY_ID", "PROVIDER_ID"])
+        nr = pd.DataFrame(columns=["CLAIM_ID", "RULE_ID", "RULE_NAME"])
+        d = AppData.from_frames(cl, pol, prov, nr, snapshot_taken_at=datetime(2024, 6, 1, 20, 0))   # 2024-06-02 01:30 IST
+        p = provider_profile(d, 1)
+        self.assertEqual((p["as_of_date"], p["claim_count"]), ("2024-06-02", 2))
+        self.assertEqual(provider_profile(d, 1, "2024-06-01")["claim_count"], 1)   # explicit date still wins
+
+    def test_independent_of_host_time_zone(self):
+        """Same answers with the host configured for UTC and for IST (subprocesses with different TZ settings)."""
+        import subprocess
+        code = ("import sys, time; sys.path.insert(0, r'%s'); from datetime import datetime; from app_risk.dates import app_date; "
+                "print(app_date(datetime(2024, 6, 1, 20, 0)), app_date(datetime(2026, 11, 11, 18, 29, 59)), app_date(datetime(2026, 11, 11, 18, 30)), "
+                "app_date() == app_date(datetime.utcnow()), time.strftime('%%z'))") % str(ROOT)
+        outs = {}
+        for tz in ("UTC0", "IST-5:30"):
+            r = subprocess.run([sys.executable, "-c", code], env={**os.environ, "TZ": tz}, capture_output=True, text=True, check=True)
+            outs[tz] = r.stdout.split()
+        self.assertEqual(outs["UTC0"][:4], ["2024-06-02", "2026-11-11", "2026-11-12", "True"])
+        self.assertEqual(outs["UTC0"][:4], outs["IST-5:30"][:4])
+        self.assertNotEqual(outs["UTC0"][4], outs["IST-5:30"][4], "the two host configurations really differ")
+
+
 class MigrationContractTests(unittest.TestCase):
     """Static checks that database/ml_schema.sql agrees with the code (no database needed)."""
     SQL_TEXT = (ROOT.parent / "database" / "ml_schema.sql").read_text(encoding="utf-8")
@@ -393,6 +431,7 @@ class MigrationContractTests(unittest.TestCase):
             self.assertEqual(created, dropped, kind)
 
 
+@unittest.skipUnless(_db_available(), "application MySQL database not reachable")
 class LiveDatabaseReadOnlyTests(unittest.TestCase):
     """Read-only checks against the real application database. Nothing is written."""
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "Fraud ML service (internal)",
     "description": "Application-native risk indicators (not ML predictions) and research-only model insights.",
-    "version": "0.4.2"
+    "version": "0.4.3"
   },
   "paths": {
     "/health": {
@@ -695,7 +695,18 @@
           },
           "as_of_date": {
             "type": "string",
-            "title": "As Of Date"
+            "title": "As Of Date",
+            "description": "YYYY-MM-DD; only claims dated on or before it are used"
+          },
+          "as_of_source": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "default_today_ist"
+            ],
+            "title": "As Of Source",
+            "description": "'default_today_ist': no as_of given, so today's IST date on the MySQL clock was used",
+            "default": "requested"
           },
           "indicator_set": {
             "type": "string",

@@ -23,14 +23,18 @@ H = {"X-ML-API-Key": KEY}
 SETTINGS = Settings(api_key=KEY, db_host="unused", db_port=0, db_user="", db_password="", db_name="")
 
 
-def fixture_data() -> AppData:
+def fixture_frames():
     pol = pd.DataFrame([{"POLICY_ID": 1, "POLICY_TYPE": "Individual", "START_DATE": date(2024, 1, 1), "END_DATE": date(2024, 12, 31),
                          "COVERAGE_AMOUNT": 10000, "PATIENT_ID": 7}])
     prov = pd.DataFrame([{"PROVIDER_ID": 1, "PROVIDER_TYPE": "Clinic"}, {"PROVIDER_ID": 2, "PROVIDER_TYPE": "Dental"}])
     claims = pd.DataFrame([(1, "2024-02-01", 100.0, "Flu", 1, 1), (2, "2024-02-03", 6000.0, "Flu", 1, 1)],
                           columns=["CLAIM_ID", "CLAIM_DATE", "CLAIM_AMOUNT", "DIAGNOSIS", "POLICY_ID", "PROVIDER_ID"])
     rules = pd.DataFrame([{"CLAIM_ID": 2, "RULE_ID": 1, "RULE_NAME": "High Claim Amount"}])
-    return AppData.from_frames(claims, pol, prov, rules, snapshot_taken_at=datetime(2024, 6, 1, 3, 30))  # MySQL UTC_TIMESTAMP()
+    return claims, pol, prov, rules
+
+
+def fixture_data() -> AppData:
+    return AppData.from_frames(*fixture_frames(), snapshot_taken_at=datetime(2024, 6, 1, 3, 30))  # MySQL UTC_TIMESTAMP()
 
 
 def failing_loader():
@@ -94,6 +98,17 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual((b["kind"], b["as_of_date"], b["claim_count"]), ("provider_level_indicators", "2024-02-02", 1))
         self.assertEqual(self.client.get("/v1/providers/1/indicators", params={"as_of": "02/02/2024"}, headers=H).status_code, 422)
         self.assertEqual(self.client.get("/v1/providers/42/indicators", headers=H).status_code, 404)
+
+    def test_provider_default_as_of_is_ist_date_on_mysql_clock(self):
+        # fixture snapshot_taken_at = 2024-06-01 03:30 UTC (MySQL) = 2024-06-01 09:00 IST
+        b = self.client.get("/v1/providers/1/indicators", headers=H).json()
+        self.assertEqual((b["as_of_date"], b["as_of_source"]), ("2024-06-01", "default_today_ist"))
+        late = TestClient(create_app(SETTINGS, loader=lambda: AppData.from_frames(
+            *fixture_frames(), snapshot_taken_at=datetime(2024, 6, 1, 20, 0)), research=self.store))
+        b2 = late.get("/v1/providers/1/indicators", headers=H).json()
+        self.assertEqual((b2["as_of_date"], b2["as_of_source"]), ("2024-06-02", "default_today_ist"))   # 01:30 IST next day
+        b3 = self.client.get("/v1/providers/1/indicators", params={"as_of": "2024-02-02"}, headers=H).json()
+        self.assertEqual((b3["as_of_date"], b3["as_of_source"]), ("2024-02-02", "requested"))
 
     def test_database_failure_is_503_without_details(self):
         r = self.down.get("/v1/claims/1/indicators", headers=H)

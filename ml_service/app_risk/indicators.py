@@ -34,6 +34,7 @@ import pandas as pd
 
 from . import config as C
 from .data import AppData
+from .dates import app_date
 from .snapshots import DIGEST_FIELDS, assessment_digest
 
 DISCLAIMER = ("Indicators are transparent statistics computed from this application's data with documented, "
@@ -268,7 +269,8 @@ def _provider_values(cl: pd.DataFrame, flagged_ids: set, all_cl: pd.DataFrame) -
 def provider_profile(data: AppData, provider_id: int, as_of: date | str | None = None) -> dict:
     if int(provider_id) not in data.providers.index:
         raise KeyError(f"Unknown provider {provider_id}")
-    as_of_ts = pd.Timestamp(as_of).normalize() if as_of is not None else pd.Timestamp(date.today())
+    # Default: today's IST date on the MySQL clock (app_risk.dates), never the host's local date.
+    as_of_ts = pd.Timestamp(as_of).normalize() if as_of is not None else pd.Timestamp(app_date(data.snapshot_taken_at))
     upto = data.claims.loc[data.claims["CLAIM_DATE"] <= as_of_ts]
     flagged = set(data.rule_hits["CLAIM_ID"].astype(int))
     mine = upto.loc[upto["PROVIDER_ID"] == int(provider_id)]
