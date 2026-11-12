@@ -45,10 +45,16 @@ const ClaimDetails = () => {
                   Patient: <strong>{c.PATIENT_NAME}</strong> · {c.PATIENT_EMAIL}
                 </p>
               </div>
-              <button onClick={() => navigate('/claims')}
-                style={{ padding: '0.5rem 1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', background: '#fff', cursor: 'pointer', color: '#374151', fontSize: '0.875rem' }}>
-                ← Back to Claims
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button onClick={() => navigate(`/ai-insights/claims/${c.CLAIM_ID}`)}
+                  style={{ padding: '0.5rem 1rem', border: '1px solid #c7d2fe', borderRadius: '0.5rem', background: '#eef2ff', cursor: 'pointer', color: '#4338ca', fontSize: '0.875rem', fontWeight: 500 }}>
+                  🧭 AI assessment
+                </button>
+                <button onClick={() => navigate('/claims')}
+                  style={{ padding: '0.5rem 1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', background: '#fff', cursor: 'pointer', color: '#374151', fontSize: '0.875rem' }}>
+                  ← Back to Claims
+                </button>
+              </div>
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,6 +9,8 @@ const NAV = [
   { label: 'Providers',        path: '/providers',       icon: '🏥' },
   { label: 'Claims',           path: '/claims',          icon: '📄' },
   { label: 'Fraud Rules',      path: '/fraud-rules',     icon: '⚙️' },
+  { label: 'AI Insights',      path: '/ai-insights',     icon: '🧭' },
+  { label: 'Research',         path: '/research',        icon: '🔬' },
   { label: 'Reports',          path: '/reports',         icon: '📈' },
   { label: 'Users',            path: '/users',           icon: '👥' },
 ];

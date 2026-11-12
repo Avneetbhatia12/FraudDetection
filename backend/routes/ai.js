@@ -462,6 +462,23 @@ function createAiRouter({ pool = require('../config/db'), ml = createMlClient.fr
        FROM CLAIM_LATEST_OUTCOME l JOIN OUTCOME_TRAINING_SNAPSHOT t ON t.OUTCOME_ID = l.OUTCOME_ID
        WHERE t.IS_TRAINING_ELIGIBLE = 1`);
     const [[m]] = await pool.query('SELECT MODEL_KEY, VERSION, IS_ACTIVE FROM MODEL_REGISTRY WHERE MODEL_KEY = ?', [indicatorSetKey]);
+    // Stored results only (read-only summaries; nothing is computed or written here).
+    const [recent] = await pool.query(
+      `SELECT v.ASSESSMENT_ID, v.CLAIM_ID, v.REVIEW_PRIORITY, v.TRIGGERED_COUNT, v.INDICATORS, v.RULE_HITS, v.ASSESSED_AT, v.INDICATOR_SET_VERSION
+       FROM CLAIM_LATEST_VALID_ASSESSMENT v ORDER BY v.ASSESSED_AT DESC, v.ASSESSMENT_ID DESC LIMIT 10`);
+    const [profiles] = await pool.query(
+      `SELECT x.PROFILE_ID, x.PROVIDER_ID, mp.PROVIDER_NAME, mp.PROVIDER_TYPE, DATE_FORMAT(x.AS_OF_DATE, '%Y-%m-%d') AS AS_OF_DATE_TEXT,
+              x.CLAIM_COUNT, x.PROFILE_STATUS, x.INDICATORS, x.COMPUTED_AT
+       FROM (SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p.PROVIDER_ID ORDER BY p.COMPUTED_AT DESC, p.PROFILE_ID DESC) AS RN
+             FROM PROVIDER_RISK_PROFILE p WHERE p.PROFILE_STATUS <> 'failed') x
+       JOIN MEDICAL_PROVIDER mp ON mp.PROVIDER_ID = x.PROVIDER_ID WHERE x.RN = 1`);
+    const [[{ n: providerTotal }]] = await pool.query('SELECT COUNT(*) AS n FROM MEDICAL_PROVIDER');
+    const triggeredOf = (inds) => (Array.isArray(inds) ? inds : []).filter((i) => i.triggered === true).map((i) => ({ code: i.code, name: i.name }));
+    const providerRows = profiles.map((r) => ({
+      profile_id: r.PROFILE_ID, provider_id: r.PROVIDER_ID, provider_name: r.PROVIDER_NAME, provider_type: r.PROVIDER_TYPE,
+      as_of_date: r.AS_OF_DATE_TEXT, claim_count: r.CLAIM_COUNT, profile_status: r.PROFILE_STATUS, computed_at: r.COMPUTED_AT,
+      triggered_indicators: triggeredOf(r.INDICATORS),
+    })).sort((a, b) => b.triggered_indicators.length - a.triggered_indicators.length || b.claim_count - a.claim_count);
     const byPriority = Object.fromEntries(PRIORITIES.map((p) => [p, 0]));
     prio.forEach((r) => { if (r.p) byPriority[r.p] = Number(r.n); });
     const byOutcome = Object.fromEntries(OUTCOMES.map((o) => [o, 0]));
@@ -476,6 +493,16 @@ function createAiRouter({ pool = require('../config/db'), ml = createMlClient.fr
       review_queue: queue.map((q) => ({ assessment_id: q.ASSESSMENT_ID, claim_id: q.CLAIM_ID, review_priority: q.REVIEW_PRIORITY,
         triggered_count: q.TRIGGERED_COUNT, assessed_at: q.ASSESSED_AT, claim_date: q.CLAIM_DATE, claim_amount: Number(q.CLAIM_AMOUNT),
         claim_status: q.STATUS })),
+      recent_assessments: recent.map((r) => ({ assessment_id: r.ASSESSMENT_ID, claim_id: r.CLAIM_ID, review_priority: r.REVIEW_PRIORITY,
+        triggered_count: r.TRIGGERED_COUNT, rule_hit_count: Array.isArray(r.RULE_HITS) ? r.RULE_HITS.length : 0,
+        triggered_indicators: triggeredOf(r.INDICATORS), indicator_set_version: r.INDICATOR_SET_VERSION, assessed_at: r.ASSESSED_AT })),
+      provider_overview: {
+        total_providers: Number(providerTotal),
+        profiled_providers: providerRows.length,
+        with_triggered_indicators: providerRows.filter((p) => p.triggered_indicators.length > 0).length,
+        insufficient_data: providerRows.filter((p) => p.profile_status === 'insufficient_data').length,
+        providers: providerRows.slice(0, 10),
+      },
       latest_outcomes: byOutcome,
       future_supervised_model: {
         eligible_final_outcomes: Number(train.eligible_final_outcomes),

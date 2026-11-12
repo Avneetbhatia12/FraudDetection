@@ -7,7 +7,10 @@ const FraudScoreIndicator = ({ flagCount = 0, ruleCount = 0 }) => {
 
   return (
     <div style={{ background: '#f9fafb', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid #e5e7eb' }}>
-      <h4 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Fraud Risk Score</h4>
+      <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Rule-based Risk Score</h4>
+      <p data-testid="rule-score-note" style={{ margin: '0 0 1rem', fontSize: '0.72rem', color: '#6b7280', lineHeight: 1.4 }}>
+        Existing heuristic from SQL fraud flags and rule hits (25 per flag + 15 per rule, max 100). Not an AI indicator or a machine-learning model.
+      </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div style={{ position: 'relative', width: '80px', height: '80px' }}>
           <svg viewBox="0 0 36 36" style={{ width: '80px', height: '80px', transform: 'rotate(-90deg)' }}>

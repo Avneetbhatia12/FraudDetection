@@ -340,6 +340,20 @@ async function main() {
   check('AI dashboard: counts match the database; review queue; Track 3 checkpoint shown as a review point',
     dash.status === 200 && dash.body.claims.with_valid_assessment === valid && dash.body.future_supervised_model.eligible_final_outcomes >= 0
     && Object.values(dash.body.review_priority).reduce((x, y) => x + y, 0) === valid);
+  const recentValid = await q('SELECT ASSESSMENT_ID FROM CLAIM_LATEST_VALID_ASSESSMENT ORDER BY ASSESSED_AT DESC, ASSESSMENT_ID DESC LIMIT 10');
+  const ra = dash.body.recent_assessments;
+  check('dashboard recent_assessments = latest valid snapshots (stored only), with raised indicator names',
+    Array.isArray(ra) && ra.length === recentValid.length && ra.every((r, i) => r.assessment_id === recentValid[i].ASSESSMENT_ID)
+    && ra.every((r) => Array.isArray(r.triggered_indicators) && r.triggered_indicators.every((x) => x.code && x.name)));
+  const po = dash.body.provider_overview;
+  const profiledDb = (await one("SELECT COUNT(DISTINCT PROVIDER_ID) AS n FROM PROVIDER_RISK_PROFILE WHERE PROFILE_STATUS <> 'failed'")).n;
+  const provTotal = (await one('SELECT COUNT(*) AS n FROM MEDICAL_PROVIDER')).n;
+  check('dashboard provider_overview: counts match stored profiles; rows carry name, as-of date and raised indicators',
+    po.profiled_providers === profiledDb && po.total_providers === provTotal && po.providers.length === Math.min(10, profiledDb)
+    && po.providers.every((p) => p.provider_name && /^\d{4}-\d{2}-\d{2}$/.test(p.as_of_date) && Array.isArray(p.triggered_indicators)));
+  const rowsBeforeDash = (await one('SELECT (SELECT COUNT(*) FROM CLAIM_RISK_ASSESSMENT) + (SELECT COUNT(*) FROM PROVIDER_RISK_PROFILE) AS n')).n;
+  await call(A, 'GET', '/ai/dashboard', T.analyst);
+  check('dashboard is read-only (no rows written)', (await one('SELECT (SELECT COUNT(*) FROM CLAIM_RISK_ASSESSMENT) + (SELECT COUNT(*) FROM PROVIDER_RISK_PROFILE) AS n')).n === rowsBeforeDash);
   const stA = await call(A, 'GET', '/ai/status', T.analyst);
   check('/api/ai/status: service reachable, registry app-indicators-v2 2.0.0 registered, live, active, consistent -> ready',
     stA.body.ml_service.reachable && stA.body.registry.version === '2.0.0' && stA.body.registry.approved_for_live_data && stA.body.ready === true);
