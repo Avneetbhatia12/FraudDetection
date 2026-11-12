@@ -46,7 +46,7 @@ Missing features are **never** filled with defaults, and incompatible data is ne
 
 ```
 React ──JWT──► Express (only gateway; auth + roles; stores results)
-                 │  X-ML-API-Key, 3 s timeout, circuit breaker      (planned, Phase 4.4)
+                 │  X-ML-API-Key, 3 s timeout, circuit breaker      (implemented, Phase 4.4)
                  ▼
          FastAPI ml_service (127.0.0.1:8000, internal)
            ├─ Track 2: app_risk indicators ──read-only session──► MySQL (whitelisted columns)
@@ -74,21 +74,56 @@ All `/v1/*` routes require `X-ML-API-Key`. The service refuses to start without 
 The indicator endpoints are **GET** (they compute, store nothing and have no side effects). This replaces the POST proposed
 during the assessment. Storing results is Express's job.
 
-### 4.2 Express (planned for 4.4, not implemented). Login (JWT) required on all routes
+### 4.2 Express (implemented in 4.4): `backend/routes/ai.js`, `backend/services/mlClient.js`, mounted at `/api/ai`
+
+Every route requires login (existing `middleware/auth.js`: 401 without a token, 403 with an invalid one). The browser only
+ever talks to Express; the ML service URL and `X-ML-API-Key` stay on the server.
 
 | Method | Path | Roles | Behaviour |
 |---|---|---|---|
-| GET | `/api/ai/status` | any | ML service reachable? `ML_ENABLED`? |
-| GET | `/api/ai/claims/:id/assessment` | any | call FastAPI; compare `indicators_digest` with `CLAIM_LATEST_VALID_ASSESSMENT`; **append** a new `CLAIM_RISK_ASSESSMENT` snapshot only if it differs or none exists (never update); on failure append a `failed` row and show the latest valid snapshot |
-| POST | `/api/ai/claims/:id/assessment` | Admin, Investigator | recompute (`TRIGGER_SOURCE='manual_recompute'`) |
-| GET | `/api/ai/providers/:id/profile` | any | latest or new `PROVIDER_RISK_PROFILE` |
-| GET | `/api/ai/claims/:id/outcomes` | any | outcome history |
-| POST | `/api/ai/claims/:id/outcomes` | **Admin, Investigator** (`requireRole`) | append `CLAIM_INVESTIGATION_OUTCOME`; never changes `CLAIM.STATUS` |
-| GET | `/api/ai/research/*` | any | proxy to FastAPI research routes (labelled) |
+| GET | `/api/ai/status` | any | ML enabled/configured, circuit state, ML service reachability and indicator-set version, registry check for `ML_INDICATOR_SET_KEY`; `ready` only if all agree |
+| GET | `/api/ai/claims/:id/assessment` | any | call FastAPI; resolve `MODEL_ID` by `MODEL_KEY` (must be registered, active, live-approved, same version); compare `indicators_digest` with `CLAIM_LATEST_VALID_ASSESSMENT`; **append** a snapshot only if it differs (`snapshot: "new"`), else return the stored one (`"unchanged"`). Response = the stored row read back (`assessment_id`, `assessed_at` from MySQL) |
+| POST | `/api/ai/claims/:id/assessment` | Admin, Investigator | same, `TRIGGER_SOURCE='manual_recompute'` (still no duplicate if unchanged) |
+| GET | `/api/ai/claims/:id/assessments` | any | append-only history incl. failed attempts, newest first |
+| GET | `/api/ai/claims/:id/outcomes` | any | outcome history with training eligibility / exclusion reason |
+| POST | `/api/ai/claims/:id/outcomes` | **Admin, Investigator** (`requireRole`) | body `{outcome, outcome_basis?, notes?, assessment_id}`. `assessment_id` (the snapshot displayed) is **required** and must be a non-failed snapshot of the same claim; no substitution; timestamps in the body are rejected. The DB trigger is the final safeguard. Returns the stored row with `decided_at` from MySQL. Never changes `CLAIM.STATUS` |
+| GET | `/api/ai/providers/:id/profile?as_of=YYYY-MM-DD` | any | call FastAPI with an explicit date (default: today in IST on the MySQL clock, `as_of_source: default_today_ist`); append a `PROVIDER_RISK_PROFILE` only if content differs from the latest stored profile for that date |
+| GET | `/api/ai/dashboard` | any | stored results only: priority distribution, review queue (High/Elevated), failed attempts (24 h), latest outcomes, Track 3 checkpoint progress (a review point, not permission to train) |
+| GET | `/api/ai/research/models`, `/research/shap/global`, `/research/providers/:PRV00000/explanation`, `/research/figures/:name` | any | proxied Kaggle research results, labelled `research_benchmark`, `applies_to_live_application_data: false`; application provider IDs rejected; figures served as PNG from the FastAPI whitelist |
+
+Failure handling: the ML client uses a 3 s timeout and a circuit breaker (3 consecutive failures → calls skipped for 30 s; then
+one half-open trial). Timeouts, network errors, 5xx, a rejected key or a malformed response are recorded as a `failed`
+assessment (never the digest baseline) and answered with HTTP 503 `{ai_status: "unavailable", reason, failed_attempt_id,
+last_valid_assessment (stale: true)}`. Skipped calls (circuit open, `ML_ENABLED=false`, no key) store nothing. A per-claim MySQL
+named lock (`GET_LOCK`) prevents concurrent views from storing the same snapshot twice. Configuration: `backend/.env.example`.
+
+**Provider as-of date policy.** "Today" is the calendar date in IST (UTC+05:30, no daylight saving) on the **MySQL server
+clock**, never a host's local date. Express computes it as `DATE(UTC_TIMESTAMP() + INTERVAL 330 MINUTE)` and always sends
+`as_of` explicitly (failed rows use the same date). FastAPI's own default (direct calls) derives it from the `UTC_TIMESTAMP()`
+read inside its snapshot (`app_risk/dates.py`). Verified identical with Express and FastAPI hosts set to UTC and to IST.
+
+**Rate limits** (`backend/middleware/aiRateLimit.js`, `/api/ai` only; existing routes are not limited). Per authenticated user,
+fixed 60 s window, in memory per Express process; over the limit → HTTP 429 with `Retry-After` and no internal details; a
+rejected request never reaches FastAPI or the database. Role checks run first, so a 403 does not use quota.
+
+| Bucket | Routes | Default | Variable |
+|---|---|---|---|
+| compute | GET claim assessment, GET provider profile | 60 / user / min | `AI_RATE_COMPUTE_PER_USER` |
+| recompute | POST claim assessment | 10 / user / min | `AI_RATE_RECOMPUTE_PER_USER` |
+| outcome | POST outcome | 30 / user / min | `AI_RATE_OUTCOME_PER_USER` |
+| read | status, dashboard, histories, research | 120 / user / min | `AI_RATE_READ_PER_USER` |
+| compute (all users) | every ML-computing request together (protects FastAPI) | 600 / min | `AI_RATE_COMPUTE_GLOBAL` |
+
+`AI_RATE_WINDOW_MS` changes the window; `AI_RATE_LIMIT_ENABLED=false` disables AI limits. The active values are shown by
+`GET /api/ai/status` (`rate_limits`).
 
 Existing routes (`/api/claims`, `/api/fraud-*`, …) are unchanged; `POST /api/claims` is **not** modified (assessment is computed on first view).
 
-## 5. Database (revised `database/ml_schema.sql`, NOT applied)
+Tests: `backend/tests/mlClient.test.js` and `backend/tests/aiRateLimit.test.js` (`npm test`: timeout, breaker, key handling, limits) and
+`tools/ai_integration/e2e.cjs` (full Express → FastAPI → MySQL flow; writes, so it refuses to run on `fraud_detection` and
+needs a temporary schema restored from a backup with the migration applied).
+
+## 5. Database (`database/ml_schema.sql`, applied to `fraud_detection` on 2026-11-11 after backup and verification)
 
 New objects only: `MODEL_REGISTRY`, `CLAIM_RISK_ASSESSMENT`, `PROVIDER_RISK_PROFILE`, `CLAIM_INVESTIGATION_OUTCOME`; append-only
 triggers on the three history tables; clock/version triggers (§5b); the registry seed row `app-indicators-v2` 2.0.0; the views `CLAIM_LATEST_ASSESSMENT` (latest attempt, may be failed), `CLAIM_LATEST_VALID_ASSESSMENT`
@@ -161,27 +196,15 @@ GRANT SELECT ON fraud_detection.FRAUD_RULE TO 'fraud_ml_ro'@'localhost';
 Until then, the service puts its session in `READ ONLY` transaction mode (verified by test).
 
 ## 6. Fallback
+- Claim creation and the SQL rules never depend on Python (verified with the ML service down).
+- With `ML_ENABLED=false`, no key, an open circuit, or when FastAPI is down or times out (3 s), the AI routes answer 503
+  `ai_status: "unavailable"` with the last stored valid snapshot marked `stale`; no assessment is invented. Only real failed
+  calls are stored as `failed` rows. A circuit breaker skips calls for 30 s after 3 consecutive failures.
+- The UI (Phase 5) should show "AI assessment unavailable" with a retry option.
 
-- Claim creation and the SQL rules never depend on Python.
-- With `ML_ENABLED=false`, or when FastAPI is down or times out (3 s), Express returns `{status: "unavailable"}`, records a
-  `failed` assessment, and the UI shows "AI assessment unavailable" with a retry option. A circuit breaker skips calls for 30 s
-  after 3 failures.
-- Research figures and metrics are static files, so they could also be served without the service.
-
-## 7. Planned `backend/server.js` change (prepared, NOT applied)
-
-Your uncommitted edit (log message, line 46) is preserved and is a separate hunk. The integration change is two additive lines,
-to be applied in 4.4 only together with `routes/ai.js` (mounting it earlier would break start-up):
-
-```diff
-@@ const claimRoutes    = require('./routes/claims');
- const fraudRoutes    = require('./routes/fraud');
-+const aiRoutes       = require('./routes/ai');          // Phase 4.4: AI assessment routes (additive)
-@@ app.use('/api/claims',    claimRoutes);
- app.use('/api',           fraudRoutes);   // fraud-flags, fraud-rules, high-risk-claims, dashboard, reports
-+app.use('/api/ai',        aiRoutes);
-```
-Only these two lines will be staged, via a reviewed partial patch (`git apply --cached`), with the combined diff shown first.
+## 7. `backend/server.js` change (applied in 4.4)
+Two additive lines (router import and `app.use('/api/ai', aiRoutes)`). The separate, uncommitted startup-log edit is preserved
+and is a separate hunk; when committing, only the two integration lines are staged (partial patch).
 
 ## 8. Limitations
 

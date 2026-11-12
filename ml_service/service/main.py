@@ -29,6 +29,7 @@ from fastapi.responses import FileResponse
 
 from app_risk import config as C
 from app_risk.data import AppData, load_from_mysql
+from app_risk.dates import app_date
 from app_risk.indicators import assess_claim, provider_profile
 from app_risk.settings import Settings
 
@@ -36,7 +37,7 @@ from .research import SCOPE, ResearchStore
 from .schemas import ClaimAssessment, Health, ProviderProfile, ResearchEnvelope, Status
 
 SERVICE = "fraud-ml-service"
-VERSION = "0.4.2"   # 0.4.2: no host-clock timestamps; snapshot_taken_at from the MySQL clock (replaces assessed_at)
+VERSION = "0.4.3"   # 0.4.3: provider default as-of date = IST date on the MySQL clock; 0.4.2: MySQL-clock timestamps
 log = logging.getLogger(SERVICE)
 
 
@@ -93,8 +94,10 @@ def create_app(settings: Settings, loader: Optional[Callable[[], AppData]] = Non
     @app.get("/v1/providers/{provider_id}/indicators", response_model=ProviderProfile, dependencies=[Depends(require_key)], tags=["application"])
     def provider_indicators(provider_id: int = Path(gt=0), as_of: Optional[date] = Query(default=None)):
         data = load()
+        # Default as-of date: today in IST on the MySQL clock (app_risk.dates), never this host's local date.
+        effective = as_of if as_of is not None else app_date(data.snapshot_taken_at)
         try:
-            return provider_profile(data, provider_id, as_of)
+            return {**provider_profile(data, provider_id, effective), "as_of_source": "requested" if as_of is not None else "default_today_ist"}
         except KeyError:
             raise HTTPException(status_code=404, detail=f"provider {provider_id} not found")
 

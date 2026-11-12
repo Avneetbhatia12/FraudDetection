@@ -52,7 +52,9 @@ class ClaimAssessment(BaseModel):
 class ProviderProfile(BaseModel):
     kind: Literal["provider_level_indicators"] = "provider_level_indicators"
     provider_id: int
-    as_of_date: str
+    as_of_date: str = Field(description="YYYY-MM-DD; only claims dated on or before it are used")
+    as_of_source: Literal["requested", "default_today_ist"] = Field(
+        "requested", description="'default_today_ist': no as_of given, so today's IST date on the MySQL clock was used")
     indicator_set: str
     indicator_set_version: str
     profile_status: Literal["completed", "insufficient_data"]
